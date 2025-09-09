@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { Chat } from './components/Chat';
+import { Home } from './components/Home';
 import { OfficerLogin } from './components/OfficerLogin';
 import { OfficerDashboard } from './components/OfficerDashboard';
 import { Sprout, MessageSquare, Shield } from 'lucide-react';
 
 export const App: React.FC = () => {
   const [token, setToken] = useState<string | null>(null);
-  const [view, setView] = useState<'chat' | 'officer'>('chat');
+  const [view, setView] = useState<'home' | 'chat' | 'officer'>('home');
 
   return (
     <div className="min-h-screen flex flex-col relative">
@@ -18,6 +19,7 @@ export const App: React.FC = () => {
             <h1 className="text-lg font-semibold">Farmer's Assistant</h1>
           </div>
           <nav className="flex items-center gap-2">
+            <button className={`btn !py-2 !px-3 ${view==='home'?'opacity-100':'opacity-80'}`} onClick={() => setView('home')}><Sprout className="w-4 h-4"/> Home</button>
             <button className={`btn !py-2 !px-3 ${view==='chat'?'opacity-100':'opacity-80'}`} onClick={() => setView('chat')}><MessageSquare className="w-4 h-4"/> Chat</button>
             <button className={`btn !py-2 !px-3 bg-white text-brand-green border border-brand-green hover:bg-brand-light ${view==='officer'?'opacity-100':'opacity-80'}`} onClick={() => setView('officer')}><Shield className="w-4 h-4"/> Officer</button>
           </nav>
@@ -25,6 +27,7 @@ export const App: React.FC = () => {
       </header>
       <main className="flex-1 px-4 py-6">
         <div className="max-w-6xl mx-auto">
+          {view === 'home' && <Home />}
           {view === 'chat' && <Chat />}
           {view === 'officer' && (
             token ? (
