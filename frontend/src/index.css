@@ -1,0 +1,32 @@
+﻿@import "tailwindcss";
+
+:root { color-scheme: light; }
+body { background-color: #f9fafb; color: #111827; }
+
+.hero-bg {
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(1200px 600px at 10% -10%, rgba(102,187,106,0.20), transparent),
+    radial-gradient(800px 400px at 90% 0%, rgba(46,125,50,0.12), transparent);
+  pointer-events: none;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  background-color: #2e7d32;
+  color: #ffffff;
+  transition: opacity .2s ease, transform .05s ease;
+}
+.btn:hover { opacity: .9; }
+.btn:active { transform: scale(.98); }
+
+.card {
+  background-color: #ffffff;
+  border-radius: 0.75rem;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+  border: 1px solid #f3f4f6;
+}
