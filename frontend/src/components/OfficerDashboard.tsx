@@ -3,7 +3,7 @@ import axios from 'axios';
 import { LogOut, Filter, Shield } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip } from 'recharts';
 
-const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8080';
+const backendUrl = (import.meta as any).env?.VITE_BACKEND_URL || 'http://localhost:8080';
 
 type Query = {
   _id: string;
@@ -38,7 +38,7 @@ export const OfficerDashboard: React.FC<{ token: string; onLogout: () => void }>
   }, []);
 
   const filtered = useMemo(() => {
-    return queries.filter(() => true); // placeholder filters
+    return queries.filter(() => true);
   }, [queries, region, crop, category]);
 
   const stats = useMemo(() => {
@@ -74,15 +74,15 @@ export const OfficerDashboard: React.FC<{ token: string; onLogout: () => void }>
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="card p-4">
           <div className="text-sm text-gray-500">Total Queries</div>
-          <div className="text-2xl font-semibold">{stats.total}</div>
+          <div className="text-2xl font-semibold mt-1">{stats.total}</div>
         </div>
         <div className="card p-4">
           <div className="text-sm text-gray-500">Pending</div>
-          <div className="text-2xl font-semibold text-yellow-600">{stats.pending}</div>
+          <div className="text-2xl font-semibold text-yellow-600 mt-1">{stats.pending}</div>
         </div>
         <div className="card p-4">
           <div className="text-sm text-gray-500">Answered</div>
-          <div className="text-2xl font-semibold text-blue-600">{stats.answered}</div>
+          <div className="text-2xl font-semibold text-blue-600 mt-1">{stats.answered}</div>
         </div>
       </div>
 
@@ -138,7 +138,7 @@ export const OfficerDashboard: React.FC<{ token: string; onLogout: () => void }>
       </div>
 
       <div className="card p-4 overflow-x-auto">
-        <table className="min-w-full text-sm">
+        <table className="table min-w-full text-sm">
           <thead>
             <tr className="text-left">
               <th className="p-2">Time</th>
@@ -150,9 +150,9 @@ export const OfficerDashboard: React.FC<{ token: string; onLogout: () => void }>
             {filtered.map((q) => (
               <tr key={q._id} className="border-t border-gray-100">
                 <td className="p-2 whitespace-nowrap">{new Date(q.createdAt).toLocaleString()}</td>
-                <td className="p-2 max-w-[40ch] truncate" title={q.text}>{q.text}</td>
+                <td className="p-2 max-w-[48ch] truncate" title={q.text}>{q.text}</td>
                 <td className="p-2">
-                  <span className={`px-2 py-1 rounded-full text-xs ${q.status==='pending' ? 'bg-yellow-100 text-yellow-800' : q.status==='answered' ? 'bg-blue-100 text-blue-800' : 'bg-red-100 text-red-800'}`}>
+                  <span className={`badge ${q.status==='pending' ? 'badge-yellow' : q.status==='answered' ? 'badge-blue' : 'badge-red'}`}>
                     {q.status}
                   </span>
                 </td>
@@ -160,6 +160,7 @@ export const OfficerDashboard: React.FC<{ token: string; onLogout: () => void }>
             ))}
           </tbody>
         </table>
+        {error && <div className="text-red-600 text-sm mt-3">{error}</div>}
       </div>
     </div>
   );

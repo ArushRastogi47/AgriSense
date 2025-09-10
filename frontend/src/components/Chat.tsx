@@ -1,10 +1,11 @@
+/// <reference path="../types/speech.d.ts" />
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import io from 'socket.io-client';
 import axios from 'axios';
 import { Mic, MicOff, Send, Volume2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8080';
+const backendUrl = (import.meta as any).env?.VITE_BACKEND_URL || 'http://localhost:8080';
 
 type Message = { role: 'user' | 'assistant'; text: string; ts: number };
 
@@ -36,7 +37,6 @@ export const Chat: React.FC = () => {
     try {
       const { data } = await axios.post(`${backendUrl}/api/query`, { text, roomId });
       const id = data.id;
-      // Keep polling as fallback in case sockets are blocked
       let tries = 0;
       const poll = setInterval(async () => {
         tries += 1;
@@ -88,8 +88,8 @@ export const Chat: React.FC = () => {
 
   return (
     <div className="grid place-items-center">
-      <div className="w-full max-w-2xl card p-4 sm:p-6 relative">
-        <div className="absolute inset-0 -z-10 rounded-2xl bg-gradient-to-b from-brand-light/40 to-transparent" />
+      <div className="w-full max-w-2xl card p-5 sm:p-6 relative">
+        <div className="absolute inset-0 -z-10 rounded-2xl bg-gradient-to-b from-brand-light/50 to-transparent" />
         <div className="h-[60vh] sm:h-[56vh] overflow-y-auto space-y-3 pr-1">
           <AnimatePresence initial={false}>
             {messages.map((m, idx) => (
@@ -101,7 +101,7 @@ export const Chat: React.FC = () => {
                 className={`flex ${m.role==='assistant' ? 'justify-start' : 'justify-end'}`}
               >
                 <div className={`max-w-[80%] rounded-2xl px-3 py-2 shadow-sm ${m.role==='assistant' ? 'bg-white border border-gray-100' : 'bg-brand-green text-white'}`}>
-                  <div className="text-sm whitespace-pre-wrap">{m.text}</div>
+                  <div className="text-sm whitespace-pre-wrap leading-relaxed">{m.text}</div>
                   <div className={`mt-1 text-[10px] ${m.role==='assistant' ? 'text-gray-400' : 'text-white/80'} flex items-center gap-2`}>
                     <span>{new Date(m.ts).toLocaleTimeString()}</span>
                     {m.role==='assistant' && (
