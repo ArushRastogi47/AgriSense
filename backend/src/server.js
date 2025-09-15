@@ -36,7 +36,7 @@ app.get('/api/health', (req, res) => {
 });
 
 // Routes
-app.use('/api', queryRoutes);
+app.use('/api/query', queryRoutes);
 app.use('/api', infoRoutes);
 app.use('/api/officer', officerRoutes);
 
@@ -49,11 +49,13 @@ const PORT = process.env.PORT || 8080;
 connectToDatabase()
   .then(() => {
     server.listen(PORT, () => {
-      console.log(`Backend listening on port ${PORT}`);
+      console.log(`🚀 Backend listening on port ${PORT}`);
+      console.log(`🌐 Health check: http://localhost:${PORT}/api/health`);
+      console.log(`🤖 AI test: http://localhost:${PORT}/api/query/test-ai`);
     });
   })
   .catch((err) => {
-    console.error('Failed to connect to database', err);
+    console.error('❌ Failed to connect to database', err);
     process.exit(1);
   });
 
