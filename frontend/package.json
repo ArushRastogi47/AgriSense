@@ -9,6 +9,7 @@
     "preview": "vite preview --port 4173"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.57.4",
     "axios": "^1.7.7",
     "framer-motion": "^12.23.12",
     "lucide-react": "^0.543.0",

@@ -3,19 +3,21 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import io from 'socket.io-client';
 import { Mic, MicOff, Send, Volume2, VolumeX, Bot, User } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useLanguage } from '../contexts/LanguageContext';
 
-const backendUrl = (import.meta as any).env?.VITE_BACKEND_URL || 'http://localhost:8080';
+const backendUrl = (import.meta as any).env?.VITE_BACKEND_URL || 'http://localhost:3001';
 
 type Message = { role: 'user' | 'assistant'; text: string; ts: number };
 
-export const Chat: React.FC = () => {
-  const [messages, setMessages] = useState<Message[]>([]);
+export const Chat = () => {
+  const { t, language, speak } = useLanguage();
+  const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [roomId] = useState(() => Math.random().toString(36).slice(2));
   const [listening, setListening] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
-  const recognitionRef = useRef<SpeechRecognition | null>(null);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const recognitionRef = useRef(null);
+  const messagesEndRef = useRef(null);
 
   const socket = useMemo(() => io(backendUrl, { transports: ['websocket'] }), []);
 
@@ -65,7 +67,7 @@ export const Chat: React.FC = () => {
     });
   }
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
+  const handleKeyPress = (e: any) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       sendMessage(input);
@@ -80,7 +82,7 @@ export const Chat: React.FC = () => {
     }
     if (!recognitionRef.current) {
       recognitionRef.current = new SpeechRecognitionCtor();
-      recognitionRef.current.lang = 'en-US';
+      recognitionRef.current.lang = language === 'ml' ? 'ml-IN' : 'en-US';
       recognitionRef.current.interimResults = false;
       recognitionRef.current.maxAlternatives = 1;
       recognitionRef.current.onresult = (event: any) => {
@@ -88,6 +90,9 @@ export const Chat: React.FC = () => {
         setInput((prev) => (prev ? prev + ' ' : '') + transcript);
       };
       recognitionRef.current.onend = () => setListening(false);
+    } else {
+      // Update language when it changes
+      recognitionRef.current.lang = language === 'ml' ? 'ml-IN' : 'en-US';
     }
     if (!listening) {
       setListening(true);
@@ -97,15 +102,7 @@ export const Chat: React.FC = () => {
     }
   }
 
-  function speak(text: string) {
-    try {
-      const utter = new SpeechSynthesisUtterance(text);
-      utter.rate = 1;
-      utter.pitch = 1;
-      window.speechSynthesis.cancel();
-      window.speechSynthesis.speak(utter);
-    } catch {}
-  }
+  // Using speak function from LanguageContext for multilingual TTS
 
   function stopSpeaking() {
     try {
@@ -128,8 +125,8 @@ export const Chat: React.FC = () => {
               <Bot className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h1 className="font-semibold text-gray-800">AgriSense</h1>
-              <p className="text-sm text-green-600">Your farming companion</p>
+              <h1 className="font-semibold text-gray-800">{t('chat.title')}</h1>
+              <p className="text-sm text-green-600">{t('chat.subtitle')}</p>
             </div>
           </div>
         </motion.div>
@@ -147,8 +144,8 @@ export const Chat: React.FC = () => {
                   <div className="w-16 h-16 bg-gradient-to-br from-green-500 to-green-600 rounded-3xl flex items-center justify-center mb-4 shadow-lg">
                     <Bot className="w-8 h-8 text-white" />
                   </div>
-                  <h3 className="text-lg font-medium text-gray-700 mb-2">Welcome to AgriSense!</h3>
-                  <p className="text-gray-500 max-w-sm">Ask me anything about farming, crops, weather, or agricultural practices. I'm here to help!</p>
+                  <h3 className="text-lg font-medium text-gray-700 mb-2">{t('chat.welcome_title')}</h3>
+                  <p className="text-gray-500 max-w-sm">{t('chat.welcome_text')}</p>
                 </motion.div>
               )}
 
@@ -196,7 +193,7 @@ export const Chat: React.FC = () => {
                               aria-label="Play TTS"
                             >
                               <Volume2 className="w-3 h-3" />
-                              <span className="hidden sm:inline text-xs">Play</span>
+                              <span className="hidden sm:inline text-xs">{t('chat.play')}</span>
                             </motion.button>
                             <motion.button 
                               whileHover={{ scale: 1.1 }}
@@ -206,7 +203,7 @@ export const Chat: React.FC = () => {
                               aria-label="Stop TTS"
                             >
                               <VolumeX className="w-3 h-3" />
-                              <span className="hidden sm:inline text-xs">Stop</span>
+                              <span className="hidden sm:inline text-xs">{t('chat.stop')}</span>
                             </motion.button>
                           </div>
                         )}
@@ -276,7 +273,7 @@ export const Chat: React.FC = () => {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyPress={handleKeyPress}
-                placeholder="Ask about crops, weather, markets..."
+                placeholder={t('chat.placeholder')}
                 className="w-full px-4 py-3 pr-12 rounded-2xl border border-gray-200 focus:border-green-400 focus:ring-4 focus:ring-green-100 outline-none bg-white/70 backdrop-blur-sm transition-all duration-200 text-gray-800 placeholder-gray-500"
               />
             </div>

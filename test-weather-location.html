@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weather & Location Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+        .test-section { border: 1px solid #ccc; margin: 10px 0; padding: 15px; border-radius: 5px; }
+        .success { background-color: #d4edda; border-color: #c3e6cb; }
+        .error { background-color: #f8d7da; border-color: #f5c6cb; }
+        button { padding: 10px 20px; margin: 5px; cursor: pointer; }
+        pre { background: #f8f9fa; padding: 10px; border-radius: 3px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>Weather & Location API Test</h1>
+    
+    <div class="test-section">
+        <h2>Environment Variables Test</h2>
+        <button onclick="testEnvVars()">Test Environment Variables</button>
+        <div id="env-result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Geolocation Test</h2>
+        <button onclick="testGeolocation()">Get Current Location</button>
+        <div id="location-result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Weather API Test</h2>
+        <button onclick="testWeatherAPI()">Test Weather API (Delhi)</button>
+        <div id="weather-result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Fallback Data Test</h2>
+        <button onclick="testFallbackData()">Test Fallback Weather Data</button>
+        <div id="fallback-result"></div>
+    </div>
+
+    <script>
+        const OPENWEATHER_API_KEY = '895284fb2d2c50a520ea537456963d9c';
+
+        function testEnvVars() {
+            const result = document.getElementById('env-result');
+            result.innerHTML = `
+                <h3>Environment Variables:</h3>
+                <pre>
+OPENWEATHER_API_KEY: ${OPENWEATHER_API_KEY ? 'Present (' + OPENWEATHER_API_KEY.substring(0, 10) + '...)' : 'Missing'}
+Protocol: ${location.protocol}
+Hostname: ${location.hostname}
+HTTPS Required: ${location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1'}
+                </pre>
+            `;
+        }
+
+        function testGeolocation() {
+            const result = document.getElementById('location-result');
+            result.innerHTML = '<p>Testing geolocation...</p>';
+            result.className = 'test-section';
+
+            if (!navigator.geolocation) {
+                result.innerHTML = '<p>❌ Geolocation not supported</p>';
+                result.className = 'test-section error';
+                return;
+            }
+
+            navigator.geolocation.getCurrentPosition(
+                async (position) => {
+                    const { latitude, longitude } = position.coords;
+                    try {
+                        const response = await fetch(
+                            `https://api.openweathermap.org/geo/1.0/reverse?lat=${latitude}&lon=${longitude}&limit=1&appid=${OPENWEATHER_API_KEY}`
+                        );
+                        const data = await response.json();
+                        
+                        result.innerHTML = `
+                            <h3>✅ Geolocation Success</h3>
+                            <pre>
+Coordinates: ${latitude}, ${longitude}
+Location: ${data.length > 0 ? data[0].name + ', ' + data[0].country : 'Unknown'}
+                            </pre>
+                        `;
+                        result.className = 'test-section success';
+                    } catch (error) {
+                        result.innerHTML = `
+                            <h3>⚠️ Geolocation Partial Success</h3>
+                            <pre>
+Coordinates: ${latitude}, ${longitude}
+Reverse Geocoding Error: ${error.message}
+                            </pre>
+                        `;
+                        result.className = 'test-section';
+                    }
+                },
+                (error) => {
+                    result.innerHTML = `
+                        <h3>❌ Geolocation Failed</h3>
+                        <pre>Error: ${error.message}</pre>
+                    `;
+                    result.className = 'test-section error';
+                },
+                { enableHighAccuracy: true, timeout: 15000, maximumAge: 300000 }
+            );
+        }
+
+        async function testWeatherAPI() {
+            const result = document.getElementById('weather-result');
+            result.innerHTML = '<p>Testing weather API...</p>';
+            result.className = 'test-section';
+
+            const lat = 28.6139;
+            const lon = 77.2090;
+
+            try {
+                const response = await fetch(
+                    `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${OPENWEATHER_API_KEY}&units=metric`
+                );
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                const data = await response.json();
+                result.innerHTML = `
+                    <h3>✅ Weather API Success</h3>
+                    <pre>
+Location: ${data.name}, ${data.sys.country}
+Temperature: ${data.main.temp}°C
+Description: ${data.weather[0].description}
+Humidity: ${data.main.humidity}%
+Wind: ${data.wind.speed} m/s
+                    </pre>
+                `;
+                result.className = 'test-section success';
+            } catch (error) {
+                result.innerHTML = `
+                    <h3>❌ Weather API Failed</h3>
+                    <pre>Error: ${error.message}</pre>
+                `;
+                result.className = 'test-section error';
+            }
+        }
+
+        function testFallbackData() {
+            const result = document.getElementById('fallback-result');
+            
+            const fallbackData = {
+                location: { latitude: 28.6139, longitude: 77.2090, city: 'Delhi', country: 'India' },
+                current: {
+                    temperature_c: 25,
+                    relative_humidity: 65,
+                    precipitation_probability: 20,
+                    wind_speed_kmh: 12,
+                    wind_direction: 'NE',
+                    visibility_km: 10,
+                    uv_index: 6,
+                    feels_like_c: 27,
+                    pressure_mb: 1013,
+                    cloud_cover: 40,
+                    description: 'partly cloudy'
+                }
+            };
+
+            result.innerHTML = `
+                <h3>✅ Fallback Data Available</h3>
+                <pre>
+Location: ${fallbackData.location.city}, ${fallbackData.location.country}
+Temperature: ${fallbackData.current.temperature_c}°C
+Description: ${fallbackData.current.description}
+Humidity: ${fallbackData.current.relative_humidity}%
+Wind: ${fallbackData.current.wind_speed_kmh} km/h ${fallbackData.current.wind_direction}
+                </pre>
+            `;
+            result.className = 'test-section success';
+        }
+
+        // Auto-run environment test
+        testEnvVars();
+    </script>
+</body>
+</html>

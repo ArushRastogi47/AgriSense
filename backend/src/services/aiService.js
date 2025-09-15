@@ -22,6 +22,28 @@ if (process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'your_gemini_ap
   console.warn('⚠️ Gemini API Key not found or not configured');
 }
 
+// Retry mechanism with exponential backoff
+async function callWithRetry(fn, maxRetries = 3, baseDelay = 1000) {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (error) {
+      console.log(`🔄 Attempt ${attempt}/${maxRetries} failed:`, error.message);
+      
+      // If it's a 503 (service unavailable) or rate limit error, retry
+      if ((error.status === 503 || error.status === 429 || error.message.includes('overloaded')) && attempt < maxRetries) {
+        const delay = baseDelay * Math.pow(2, attempt - 1); // Exponential backoff
+        console.log(`⏳ Waiting ${delay}ms before retry...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        continue;
+      }
+      
+      // If it's the last attempt or non-retryable error, throw
+      throw error;
+    }
+  }
+}
+
 async function retrieveContext(userText) {
   const terms = userText.split(/\s+/).filter(Boolean).slice(0, 5);
   const found = await KnowledgeBase.find({ tags: { $in: terms } }).limit(3).lean();
@@ -44,12 +66,14 @@ Provide helpful agricultural guidance:`;
     let answer = '';
     if (model) {
       try {
-        const result = await model.generateContent(prompt);
-        const response = await result.response;
-        answer = response.text();
+        answer = await callWithRetry(async () => {
+          const result = await model.generateContent(prompt);
+          const response = await result.response;
+          return response.text();
+        });
         console.log('✅ AI response generated successfully');
       } catch (genErr) {
-        console.error('❌ AI Generation Error:', genErr);
+        console.error('❌ AI Generation Error after retries:', genErr);
         answer = getFallbackResponse(text);
       }
     } else {
@@ -82,19 +106,43 @@ Provide helpful agricultural guidance:`;
 function getFallbackResponse(text) {
   const lowerText = text.toLowerCase();
   
+  // Weather-related queries
   if (lowerText.includes('weather') || lowerText.includes('rain') || lowerText.includes('climate')) {
-    return "For accurate weather information, I recommend checking your local meteorological department or weather apps. Consider seasonal patterns and plan your farming activities accordingly.";
+    return "🌤️ Monitor weather patterns regularly using reliable apps or IMD forecasts. Plan sowing and harvesting based on monsoon predictions. Ensure proper drainage during heavy rains and irrigation during dry spells.";
   }
   
-  if (lowerText.includes('crop') || lowerText.includes('plant') || lowerText.includes('seed')) {
-    return "For crop-specific advice, consult your local Krishi Vigyan Kendra (KVK) or agricultural extension officer. They can provide region-specific guidance based on your soil and climate conditions.";
+  // Kerala-specific crops
+  if (lowerText.includes('kerala') || lowerText.includes('coconut') || lowerText.includes('pepper') || lowerText.includes('cardamom')) {
+    return "🌴 Kerala's tropical climate is ideal for coconut, pepper, cardamom, rubber, and spices. Focus on organic farming, proper spacing, and intercropping. Consult local KVK for variety-specific guidance.";
   }
   
-  if (lowerText.includes('pest') || lowerText.includes('disease') || lowerText.includes('insect')) {
-    return "For pest and disease management, it's best to consult with local agricultural experts who can identify the specific issue and recommend appropriate organic or chemical treatments.";
+  // Crop and planting queries
+  if (lowerText.includes('crop') || lowerText.includes('plant') || lowerText.includes('seed') || lowerText.includes('sow')) {
+    return "🌱 Choose crops based on your soil type, climate, and market demand. Ensure good quality seeds, proper spacing, and timely sowing. Consider crop rotation for soil health. Contact your local agricultural officer for region-specific varieties.";
   }
   
-  return "Thank you for your agricultural question. For the most accurate advice, I recommend consulting your local Krishi Vigyan Kendra or agricultural extension officer who can provide region-specific guidance.";
+  // Pest and disease queries
+  if (lowerText.includes('pest') || lowerText.includes('disease') || lowerText.includes('insect') || lowerText.includes('fungus')) {
+    return "🐛 Early identification is key for pest management. Use integrated pest management (IPM) combining biological, cultural, and chemical methods. Neem-based solutions are effective for many pests. Consult agricultural experts for severe infestations.";
+  }
+  
+  // Soil-related queries
+  if (lowerText.includes('soil') || lowerText.includes('fertilizer') || lowerText.includes('nutrient')) {
+    return "🌾 Regular soil testing helps determine nutrient needs. Use organic compost and balanced fertilizers. Maintain soil pH between 6.0-7.5 for most crops. Add organic matter to improve soil structure and water retention.";
+  }
+  
+  // Water and irrigation
+  if (lowerText.includes('water') || lowerText.includes('irrigation') || lowerText.includes('drip')) {
+    return "💧 Efficient water management is crucial. Consider drip irrigation for water conservation. Water early morning or evening to reduce evaporation. Monitor soil moisture and adjust irrigation based on crop stage and weather.";
+  }
+  
+  // Marketing and price queries
+  if (lowerText.includes('price') || lowerText.includes('market') || lowerText.includes('sell')) {
+    return "💰 Check current market prices through e-NAM portal or local mandis. Build relationships with buyers and consider direct marketing. Add value through processing if possible. Store properly to avoid post-harvest losses.";
+  }
+  
+  // Default response
+  return "🌾 Thank you for your agricultural question! While I'm currently experiencing high demand, here are some general tips: Follow good agricultural practices, consult your local Krishi Vigyan Kendra (KVK), and use modern farming techniques for better yields. Feel free to ask again!";
 }
 
 // Add a simple test function
@@ -104,9 +152,13 @@ async function testAI(query = "What crops are good for monsoon season?") {
       return { success: false, message: 'AI service not configured - API key missing' };
     }
     
-    const result = await model.generateContent(query);
-    const response = await result.response;
-    return { success: true, response: response.text() };
+    const response = await callWithRetry(async () => {
+      const result = await model.generateContent(query);
+      const response = await result.response;
+      return response.text();
+    });
+    
+    return { success: true, response };
   } catch (error) {
     console.error('AI test error:', error);
     return { success: false, message: error.message };
@@ -130,12 +182,14 @@ Provide helpful agricultural guidance:`;
     let answer = '';
     if (model) {
       try {
-        const result = await model.generateContent(prompt);
-        const response = await result.response;
-        answer = response.text();
+        answer = await callWithRetry(async () => {
+          const result = await model.generateContent(prompt);
+          const response = await result.response;
+          return response.text();
+        });
         console.log('✅ Chat response generated successfully');
       } catch (genErr) {
-        console.error('❌ AI Generation Error:', genErr);
+        console.error('❌ AI Generation Error after retries:', genErr);
         answer = getFallbackResponse(text);
       }
     } else {

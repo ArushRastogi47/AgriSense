@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Officer Login Test</title>
+</head>
+<body>
+    <h2>Officer Login Test</h2>
+    <button id="testLogin">Test Officer Login</button>
+    <div id="result"></div>
+
+    <script>
+        document.getElementById('testLogin').addEventListener('click', async () => {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = 'Testing...';
+            
+            try {
+                const response = await fetch('http://localhost:3001/api/officer/validate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        email: 'officer@example.com',
+                        password: 'password123'
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = `<div style="color: green;">✅ Success! Token: ${data.token.substring(0, 50)}...</div>`;
+                } else {
+                    resultDiv.innerHTML = `<div style="color: red;">❌ Error: ${data.error}</div>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div style="color: red;">❌ Network Error: ${error.message}</div>`;
+            }
+        });
+    </script>
+</body>
+</html>

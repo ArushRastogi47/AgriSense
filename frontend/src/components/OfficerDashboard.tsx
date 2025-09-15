@@ -3,7 +3,7 @@ import axios from 'axios';
 import { LogOut, Filter, Shield } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip } from 'recharts';
 
-const backendUrl = (import.meta as any).env?.VITE_BACKEND_URL || 'http://localhost:8080';
+const backendUrl = (import.meta as any).env?.VITE_BACKEND_URL || 'http://localhost:3001';
 
 type Query = {
   _id: string;
@@ -13,9 +13,9 @@ type Query = {
   createdAt: string;
 };
 
-export const OfficerDashboard: React.FC<{ token: string; onLogout: () => void }> = ({ token, onLogout }) => {
-  const [queries, setQueries] = useState<Query[]>([]);
-  const [error, setError] = useState<string | null>(null);
+export const OfficerDashboard = ({ token, onLogout }: { token: string; onLogout: () => void }) => {
+  const [queries, setQueries] = useState([]);
+  const [error, setError] = useState(null);
   const [region, setRegion] = useState('all');
   const [crop, setCrop] = useState('all');
   const [category, setCategory] = useState('all');
@@ -26,8 +26,8 @@ export const OfficerDashboard: React.FC<{ token: string; onLogout: () => void }>
         headers: { Authorization: `Bearer ${token}` }
       });
       setQueries(data.queries || []);
-    } catch (e: any) {
-      setError(e?.response?.data?.error || 'Failed to fetch queries');
+    } catch (e) {
+      setError((e as any)?.response?.data?.error || 'Failed to fetch queries');
     }
   }
 

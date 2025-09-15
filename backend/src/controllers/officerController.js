@@ -5,15 +5,27 @@ const { Query } = require('../models/Query');
 
 async function validateOfficer(req, res) {
   try {
+    console.log('🔐 Officer login attempt:', req.body.email);
     const { email, password } = req.body;
-    if (!email || !password) return res.status(400).json({ error: 'email and password required' });
+    if (!email || !password) {
+      console.log('❌ Missing email or password');
+      return res.status(400).json({ error: 'email and password required' });
+    }
     const user = await User.findOne({ email, role: 'officer' });
-    if (!user) return res.status(401).json({ error: 'invalid credentials' });
+    if (!user) {
+      console.log('❌ Officer not found:', email);
+      return res.status(401).json({ error: 'invalid credentials' });
+    }
     const ok = await bcrypt.compare(password, user.passwordHash);
-    if (!ok) return res.status(401).json({ error: 'invalid credentials' });
+    if (!ok) {
+      console.log('❌ Invalid password for:', email);
+      return res.status(401).json({ error: 'invalid credentials' });
+    }
     const token = jwt.sign({ sub: user._id, role: 'officer' }, process.env.JWT_SECRET || 'dev_secret', { expiresIn: '7d' });
+    console.log('✅ Officer login successful:', email);
     res.json({ token });
   } catch (err) {
+    console.error('❌ Officer login error:', err);
     res.status(500).json({ error: 'login failed' });
   }
 }
