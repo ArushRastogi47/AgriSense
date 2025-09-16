@@ -937,13 +937,13 @@ Provide ONE priority action and ONE monitoring advice. Keep it concise and actio
               
               <div className="space-y-4">
                 <div className="flex justify-between items-center">
-                  <span className="text-gray-600">Soil Type</span>
+                  <span className="text-gray-600">{t('home.soil_type')}</span>
                   <span className="font-semibold">{soilData?.type || 'Loading...'}</span>
                 </div>
                 
                 <div>
                   <div className="flex justify-between items-center mb-2">
-                    <span className="text-gray-600">Moisture</span>
+                    <span className="text-gray-600">{t('home.soil_moisture')}</span>
                     <span className="font-semibold">{soilData?.moisture || '--'}%</span>
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-2">
@@ -956,7 +956,7 @@ Provide ONE priority action and ONE monitoring advice. Keep it concise and actio
                 
                 <div>
                   <div className="flex justify-between items-center mb-2">
-                    <span className="text-gray-600">pH Level</span>
+                    <span className="text-gray-600">{t('home.ph_level')}</span>
                     <span className="font-semibold">{soilData?.ph || '--'}</span>
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-2">
@@ -1037,15 +1037,15 @@ Provide ONE priority action and ONE monitoring advice. Keep it concise and actio
                 {landData && (
                   <div className="grid grid-cols-2 gap-3 text-sm">
                     <div>
-                      <span className="text-gray-500">Elevation</span>
+                      <span className="text-gray-500">{t('home.elevation')}</span>
                       <div className="font-semibold">{landData.elevation}m</div>
                     </div>
                     <div>
-                      <span className="text-gray-500">Drainage</span>
+                      <span className="text-gray-500">{t('home.drainage')}</span>
                       <div className="font-semibold">{landData.drainage}</div>
                     </div>
                     <div>
-                      <span className="text-gray-500">Flood Risk</span>
+                      <span className="text-gray-500">{t('home.flood_risk')}</span>
                       <div className={`font-semibold ${
                         landData.floodRisk === 'Low' ? 'text-green-600' : 
                         landData.floodRisk === 'Moderate' ? 'text-yellow-600' : 'text-red-600'
@@ -1054,7 +1054,7 @@ Provide ONE priority action and ONE monitoring advice. Keep it concise and actio
                       </div>
                     </div>
                     <div>
-                      <span className="text-gray-500">Drought Risk</span>
+                      <span className="text-gray-500">{t('home.drought_risk')}</span>
                       <div className={`font-semibold ${
                         landData.droughtRisk === 'Low' ? 'text-green-600' : 
                         landData.droughtRisk === 'Moderate' ? 'text-yellow-600' : 'text-red-600'
@@ -1605,8 +1605,8 @@ Provide ONE priority action and ONE monitoring advice. Keep it concise and actio
                     }}
                     className="p-4 text-left border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
                   >
-                    <div className="font-medium text-gray-800 mb-1">Field Operations</div>
-                    <div className="text-sm text-gray-600">Plan your daily tasks</div>
+                    <div className="font-medium text-gray-800 mb-1">{t('home.field_operations')}</div>
+                    <div className="text-sm text-gray-600">{t('home.plan_daily_tasks')}</div>
                   </button>
                 </div>
               </div>
@@ -1614,15 +1614,15 @@ Provide ONE priority action and ONE monitoring advice. Keep it concise and actio
 
             {/* Quick Insights */}
             <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
-              <h3 className="text-xl font-bold text-gray-800 mb-4">Today's Agricultural Insights</h3>
+              <h3 className="text-xl font-bold text-gray-800 mb-4">{t('home.todays_insights')}</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-4">
                   <div className="flex items-start gap-3 p-4 bg-green-50 rounded-xl border border-green-200">
                     <CheckCircle className="w-5 h-5 text-green-600 mt-0.5" />
                     <div>
-                      <h4 className="font-semibold text-green-800">Weather Favorable</h4>
+                      <h4 className="font-semibold text-green-800">{t('home.weather_favorable')}</h4>
                       <p className="text-sm text-green-700 mt-1">
-                        Current conditions are suitable for most field operations and crop growth.
+                        {t('home.current_conditions_suitable')}
                       </p>
                     </div>
                   </div>
@@ -1668,10 +1668,10 @@ Provide ONE priority action and ONE monitoring advice. Keep it concise and actio
 
         {/* Footer */}
         <div className="text-center text-gray-500 text-sm border-t border-gray-200 pt-6">
-          <p>Smart Farming Dashboard - Empowering farmers with AI-driven agricultural intelligence</p>
+          <p>{t('home.footer_dashboard')}</p>
           <p className="mt-1">
-            Location: {weatherData ? `${weatherData.location.city}, ${weatherData.location.country}` : 'Loading...'} | 
-            Last updated: {new Date().toLocaleString()}
+            {t('home.location_label')}: {weatherData ? `${weatherData.location.city}, ${weatherData.location.country}` : 'Loading...'} | 
+            {t('home.last_updated_label')}: {new Date().toLocaleString()}
           </p>
         </div>
       </div>

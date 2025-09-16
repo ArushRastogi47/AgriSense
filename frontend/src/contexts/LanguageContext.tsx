@@ -75,6 +75,13 @@ const translations = {
     'chat.play': 'Play',
     'chat.stop': 'Stop',
     'chat.listening': 'Listening...',
+    'chat.take_photo': 'Take Photo',
+    'chat.upload_image': 'Upload Image',
+    'chat.analyzing_image': 'Analyzing image...',
+    'chat.camera_error': 'Camera requires HTTPS. Use file upload instead.',
+    'chat.plant_disease_detection': 'Plant Disease Detection',
+    'chat.plant_disease_description': 'Upload or capture a photo of your plant to identify diseases and get AI-powered treatment recommendations.',
+    'chat.upload_or_capture': 'Upload from gallery or capture with camera',
     
     // Officer
     'officer.login': 'Officer Login',
@@ -160,6 +167,11 @@ const translations = {
     'home.development_next_days': 'development over the next few days',
     'home.getting_ai_recommendation': 'Getting AI recommendation...',
     'home.chat': 'Chat',
+    'home.weather_favorable': 'Weather Favorable',
+    'home.current_conditions_suitable': 'Current conditions are suitable for most field operations and crop growth.',
+    'home.footer_dashboard': 'Smart Farming Dashboard - Empowering farmers with AI-driven agricultural intelligence',
+    'home.location_label': 'Location',
+    'home.last_updated_label': 'Last updated',
   },
   
   ml: {
@@ -227,6 +239,13 @@ const translations = {
     'chat.play': 'പ്ലേ',
     'chat.stop': 'നിർത്തുക',
     'chat.listening': 'കേൾക്കുന്നു...',
+    'chat.take_photo': 'ഫോട്ടോ എടുക്കുക',
+    'chat.upload_image': 'ചിത്രം അപ്‌ലോഡ് ചെയ്യുക',
+    'chat.analyzing_image': 'ചിത്രം വിശകലനം ചെയ്യുന്നു...',
+    'chat.camera_error': 'ക്യാമറയ്ക്ക് HTTPS ആവശ്യമാണ്. പകരം ഫയൽ അപ്‌ലോഡ് ഉപയോഗിക്കുക.',
+    'chat.plant_disease_detection': 'സസ്യ രോഗ കണ്ടെത്തൽ',
+    'chat.plant_disease_description': 'രോഗങ്ങൾ തിരിച്ചറിയാനും AI-പവർഡ് ചികിത്സാ നിർദ്ദേശങ്ങൾ നേടാനും നിങ്ങളുടെ ചെടിയുടെ ഫോട്ടോ അപ്‌ലോഡ് ചെയ്യുക അല്ലെങ്കിൽ ക്യാപ്‌ചർ ചെയ്യുക.',
+    'chat.upload_or_capture': 'ഗാലറിയിൽ നിന്ന് അപ്‌ലോഡ് ചെയ്യുക അല്ലെങ്കിൽ ക്യാമറ ഉപയോഗിച്ച് ക്യാപ്‌ചർ ചെയ്യുക',
     
     // Officer
     'officer.login': 'ഓഫീസർ ലോഗിൻ',
@@ -312,6 +331,11 @@ const translations = {
     'home.development_next_days': 'അടുത്ത ദിവസങ്ങളിലെ വികസനം',
     'home.getting_ai_recommendation': 'AI നിർദ്ദേശം ലഭിക്കുന്നു...',
     'home.chat': 'ചാറ്റ്',
+    'home.weather_favorable': 'കാലാവസ്ഥ അനുകൂലം',
+    'home.current_conditions_suitable': 'നിലവിലെ സാഹചര്യങ്ങൾ മിക്ക കാർഷിക പ്രവർത്തനങ്ങൾക്കും വിള വളർച്ചയ്ക്കും അനുയോജ്യമാണ്.',
+    'home.footer_dashboard': 'സ്മാർട്ട് ഫാർമിംഗ് ഡാഷ്ബോർഡ് - AI-ഡ്രിവൻ കാർഷിക ബുദ്ധിമത്തയുള്ള കർഷകരെ ശാക്തീകരിക്കുന്നു',
+    'home.location_label': 'സ്ഥാനം',
+    'home.last_updated_label': 'അവസാനം അപ്ഡേറ്റ് ചെയ്തത്',
   }
 };
 

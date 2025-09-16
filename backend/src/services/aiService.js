@@ -208,6 +208,100 @@ Provide helpful agricultural guidance:`;
   }
 }
 
-module.exports = { generateAIResponse, generateChatResponse, testAI };
+// Generate treatment recommendations for plant diseases
+async function generateDiseaseRecommendation(diseaseData) {
+  try {
+    console.log(`🩺 Generating treatment recommendation for: ${diseaseData.primaryDisease?.disease}`);
+    
+    const { primaryDisease, predictions } = diseaseData;
+    
+    const prompt = `You are an expert plant pathologist and agricultural advisor. A farmer has uploaded an image of their plant, and our AI analysis has identified:
+
+PRIMARY DISEASE: ${primaryDisease.disease} (${primaryDisease.confidence}% confidence, ${primaryDisease.severity} severity)
+
+${predictions.length > 1 ? `ALTERNATIVE POSSIBILITIES:
+${predictions.slice(1).map((pred, i) => `${i + 2}. ${pred.disease} (${pred.confidence}% confidence)`).join('\n')}` : ''}
+
+Please provide a well-formatted treatment plan with the following structure:
+
+🚨 **IMMEDIATE ACTIONS** (what to do right now)
+🌿 **ORGANIC TREATMENT** (natural/biological solutions)  
+💊 **CHEMICAL TREATMENT** (if organic fails)
+🛡️ **PREVENTION STRATEGIES** (avoid future occurrences)
+⚠️ **WARNING SIGNS** (when to seek expert help)
+
+Make it practical for Indian farmers, especially in Kerala. Use emojis and clear formatting. Focus on cost-effective, locally available solutions. Keep each section concise but actionable.`;
+
+    let recommendation = '';
+    if (model) {
+      try {
+        recommendation = await callWithRetry(async () => {
+          const result = await model.generateContent(prompt);
+          const response = await result.response;
+          return response.text();
+        });
+        console.log('✅ Disease treatment recommendation generated successfully');
+      } catch (genErr) {
+        console.error('❌ AI Generation Error for disease recommendation:', genErr);
+        recommendation = getFallbackDiseaseRecommendation(primaryDisease.disease);
+      }
+    } else {
+      console.log('⚠️ Gemini API not configured - using fallback disease recommendation');
+      recommendation = getFallbackDiseaseRecommendation(primaryDisease.disease);
+    }
+
+    if (!recommendation) {
+      recommendation = getFallbackDiseaseRecommendation(primaryDisease.disease);
+    }
+    
+    return recommendation;
+  } catch (err) {
+    console.error('❌ Error in generateDiseaseRecommendation:', err);
+    return getFallbackDiseaseRecommendation('Unknown Disease');
+  }
+}
+
+function getFallbackDiseaseRecommendation(diseaseName) {
+  return `🩺 **Treatment Plan for ${diseaseName}**
+
+🚨 **IMMEDIATE ACTIONS**
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🔹 Remove and destroy affected plant parts immediately
+🔹 Isolate infected plants from healthy ones
+🔹 Improve air circulation around plants
+🔹 Stop overhead watering, water at root level only
+
+🌿 **ORGANIC TREATMENT**
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🔹 **Neem Oil Spray**: Mix 2-3ml neem oil per liter water, spray evening time
+🔹 **Baking Soda Solution**: 1 tsp per liter water for fungal issues
+🔹 **Turmeric Paste**: Mix with water, apply on affected areas
+🔹 **Compost Tea**: Boost plant immunity naturally
+
+💊 **CHEMICAL TREATMENT** (if organic fails)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🔹 Visit local agricultural store for specific fungicides
+🔹 Use copper-based fungicides for bacterial/fungal diseases
+🔹 Always wear protective equipment during application
+🔹 Follow label instructions strictly
+
+🛡️ **PREVENTION STRATEGIES**
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🔹 Maintain proper plant spacing for air circulation
+🔹 Apply balanced NPK fertilizer regularly
+🔹 Mulch around plants to retain moisture
+🔹 Regular inspection (weekly check-ups)
+
+⚠️ **SEEK EXPERT HELP IF:**
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🔹 Disease spreads rapidly despite treatment
+🔹 Multiple plants are affected
+🔹 Crop yield is significantly reduced
+🔹 Unusual symptoms appear
+
+📞 **Contact**: Your local Krishi Vigyan Kendra (KVK) or agricultural extension officer for region-specific guidance.`;
+}
+
+module.exports = { generateAIResponse, generateChatResponse, testAI, generateDiseaseRecommendation };
 
 

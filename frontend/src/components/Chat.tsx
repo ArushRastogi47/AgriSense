@@ -4,6 +4,7 @@ import io from 'socket.io-client';
 import { Mic, MicOff, Send, Volume2, VolumeX, Bot, User } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useLanguage } from '../contexts/LanguageContext';
+import { ImageUpload } from './ImageUpload';
 
 const backendUrl = (import.meta as any).env?.VITE_BACKEND_URL || 'http://localhost:3001';
 
@@ -16,6 +17,7 @@ export const Chat = () => {
   const [roomId] = useState(() => Math.random().toString(36).slice(2));
   const [listening, setListening] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
   const recognitionRef = useRef(null);
   const messagesEndRef = useRef(null);
 
@@ -66,6 +68,30 @@ export const Chat = () => {
       userId: 'user-' + Math.random().toString(36).slice(2)
     });
   }
+
+  const handleImageUpload = (imageData: string, fileName: string) => {
+    setIsUploadingImage(true);
+    
+    // Add user message showing the image upload
+    setMessages((m) => [...m, { 
+      role: 'user', 
+      text: `📸 Uploaded plant image: ${fileName}`, 
+      ts: Date.now() 
+    }]);
+    
+    // Send image via Socket.IO
+    socket.emit('plant_image_upload', {
+      roomId,
+      imageData,
+      fileName,
+      userId: 'user-' + Math.random().toString(36).slice(2)
+    });
+    
+    // Reset upload state after a delay
+    setTimeout(() => {
+      setIsUploadingImage(false);
+    }, 2000);
+  };
 
   const handleKeyPress = (e: any) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -145,7 +171,24 @@ export const Chat = () => {
                     <Bot className="w-8 h-8 text-white" />
                   </div>
                   <h3 className="text-lg font-medium text-gray-700 mb-2">{t('chat.welcome_title')}</h3>
-                  <p className="text-gray-500 max-w-sm">{t('chat.welcome_text')}</p>
+                  <p className="text-gray-500 max-w-sm mb-4">{t('chat.welcome_text')}</p>
+                  
+                  {/* Plant Disease Identification Feature */}
+                  <div className="bg-gradient-to-r from-green-50 to-blue-50 rounded-xl p-4 border border-green-200 max-w-md">
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="w-8 h-8 bg-green-500 rounded-lg flex items-center justify-center">
+                        <span className="text-white text-sm">🌿</span>
+                      </div>
+                      <h4 className="font-semibold text-green-800">{t('chat.plant_disease_detection')}</h4>
+                    </div>
+                    <p className="text-sm text-green-700 mb-3">
+                      {t('chat.plant_disease_description')}
+                    </p>
+                    <div className="flex items-center gap-2 text-xs text-green-600">
+                      <span>📸</span>
+                      <span>{t('chat.upload_or_capture')}</span>
+                    </div>
+                  </div>
                 </motion.div>
               )}
 
@@ -277,6 +320,12 @@ export const Chat = () => {
                 className="w-full px-4 py-3 pr-12 rounded-2xl border border-gray-200 focus:border-green-400 focus:ring-4 focus:ring-green-100 outline-none bg-white/70 backdrop-blur-sm transition-all duration-200 text-gray-800 placeholder-gray-500"
               />
             </div>
+            
+            {/* Image Upload Component */}
+            <ImageUpload 
+              onImageUpload={handleImageUpload}
+              isUploading={isUploadingImage}
+            />
             
             <motion.button
               whileHover={{ scale: 1.05 }}
