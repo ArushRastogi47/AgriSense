@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { Chat } from './components/Chat';
 import { Home } from './components/Home';
+import LandingPage from './components/LandingPage';
+import Dashboard from './components/Dashboard';
 import { OfficerLogin } from './components/OfficerLogin';
 import { OfficerDashboard } from './components/OfficerDashboard';
 import { AuthWrapper } from './components/AuthWrapper';
@@ -9,9 +11,22 @@ import { LanguageProvider, useLanguage } from './contexts/LanguageContext';
 import { LanguageToggle } from './components/LanguageToggle';
 import { Sprout, MessageSquare, Shield, LogOut, User } from 'lucide-react';
 
+type LocationData = {
+  latitude: number;
+  longitude: number;
+  city: string;
+  country: string;
+  state?: string;
+  district?: string;
+};
+
 function AppContent() {
   const [token, setToken] = useState(null);
   const [view, setView] = useState('home');
+  const [dashboardData, setDashboardData] = useState<{
+    location: LocationData;
+    crop: string;
+  } | null>(null);
   const { user, logout } = useAuth();
   const { t } = useLanguage();
 
@@ -21,6 +36,16 @@ function AppContent() {
     } catch (error) {
       console.error('Logout error:', error);
     }
+  };
+
+  const handleDashboardSubmit = (location: LocationData, crop: string) => {
+    setDashboardData({ location, crop });
+    setView('dashboard');
+  };
+
+  const handleBackToLanding = () => {
+    setDashboardData(null);
+    setView('home');
   };
 
   return (
@@ -35,7 +60,7 @@ function AppContent() {
           <div className="flex items-center gap-4">
             <LanguageToggle />
             <nav className="flex items-center gap-2">
-              <button className={`btn !py-2 !px-3 ${view==='home'?'opacity-100':'opacity-85'}`} onClick={() => setView('home')}><Sprout className="w-4 h-4"/> {t('nav.home')}</button>
+              <button className={`btn !py-2 !px-3 ${(view==='home' || view==='dashboard')?'opacity-100':'opacity-85'}`} onClick={() => setView('home')}><Sprout className="w-4 h-4"/> {t('nav.home')}</button>
               <button className={`btn !py-2 !px-3 ${view==='chat'?'opacity-100':'opacity-85'}`} onClick={() => setView('chat')}><MessageSquare className="w-4 h-4"/> {t('nav.chat')}</button>
               <button className={`btn !py-2 !px-3 bg-white text-brand-green border border-brand-green hover:bg-brand-light ${view==='officer'?'opacity-100':'opacity-85'}`} onClick={() => setView('officer')}><Shield className="w-4 h-4"/> {t('nav.officer')}</button>
             </nav>
@@ -57,20 +82,37 @@ function AppContent() {
           </div>
         </div>
       </header>
-      <main className="flex-1 px-4 py-8">
-        <div className="max-w-6xl mx-auto">
-          {view === 'home' && <Home />}
-          {view === 'chat' && <Chat />}
-          {view === 'officer' && (
-            token ? (
-              <OfficerDashboard token={token} onLogout={() => setToken(null)} />
-            ) : (
-              <div className="max-w-md mx-auto card p-6">
-                <OfficerLogin onToken={(t) => setToken(t)} />
-              </div>
-            )
-          )}
-        </div>
+      <main className="flex-1">
+        {view === 'home' && (
+          <LandingPage onSubmit={handleDashboardSubmit} />
+        )}
+        {view === 'dashboard' && dashboardData && (
+          <Dashboard 
+            location={dashboardData.location}
+            crop={dashboardData.crop}
+            onBack={handleBackToLanding}
+          />
+        )}
+        {view === 'chat' && (
+          <div className="px-4 py-8">
+            <div className="max-w-6xl mx-auto">
+              <Chat />
+            </div>
+          </div>
+        )}
+        {view === 'officer' && (
+          <div className="px-4 py-8">
+            <div className="max-w-6xl mx-auto">
+              {token ? (
+                <OfficerDashboard token={token} onLogout={() => setToken(null)} />
+              ) : (
+                <div className="max-w-md mx-auto card p-6">
+                  <OfficerLogin onToken={(t) => setToken(t)} />
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </main>
       <footer className="border-t border-gray-100 bg-white/70">
         <div className="max-w-6xl mx-auto px-4 py-5 text-sm text-gray-600 flex items-center justify-between">

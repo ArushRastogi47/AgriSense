@@ -1,15 +1,11 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { 
   CloudSun, 
   Droplets, 
-  MapPin, 
   Sprout, 
   ThermometerSun, 
-  Tractor, 
   Wind,
   Eye,
-  Sunrise,
-  Sunset,
   Compass,
   Activity,
   TrendingUp,
@@ -22,8 +18,9 @@ import {
   Bot,
   Send,
   Loader2,
-  Navigation,
-  RefreshCw
+  RefreshCw,
+  ArrowLeft,
+  MapPin
 } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 
@@ -99,97 +96,13 @@ type LandData = {
   droughtRisk: string;
 };
 
-// Get user's current location
-const getCurrentLocation = (): Promise<LocationData> => {
-  return new Promise((resolve, reject) => {
-    // Check if geolocation is supported
-    if (!navigator.geolocation) {
-      reject(new Error('Geolocation is not supported by this browser'));
-      return;
-    }
+interface DashboardProps {
+  location: LocationData;
+  crop: string;
+  onBack: () => void;
+}
 
-    // Check if we're on HTTPS (required for geolocation in modern browsers)
-    if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
-      reject(new Error('Geolocation requires HTTPS or localhost'));
-      return;
-    }
-
-    console.log('Requesting geolocation...');
-
-    navigator.geolocation.getCurrentPosition(
-      async (position) => {
-        const { latitude, longitude } = position.coords;
-        console.log('Geolocation success:', latitude, longitude);
-        
-        try {
-          // Reverse geocoding to get location name
-          const response = await fetch(
-            `https://api.openweathermap.org/geo/1.0/reverse?lat=${latitude}&lon=${longitude}&limit=1&appid=${OPENWEATHER_API_KEY}`
-          );
-          
-          if (response.ok) {
-            const data = await response.json();
-            if (data.length > 0) {
-              console.log('Reverse geocoding success:', data[0].name);
-              resolve({
-                latitude,
-                longitude,
-                city: data[0].name,
-                country: data[0].country,
-                state: data[0].state
-              });
-              return;
-            }
-          }
-          
-          // Fallback if reverse geocoding fails
-          console.log('Reverse geocoding failed, using coordinates only');
-          resolve({
-            latitude,
-            longitude,
-            city: 'Unknown Location',
-            country: 'Unknown'
-          });
-        } catch (error) {
-          console.warn('Reverse geocoding error:', error);
-          // Fallback if reverse geocoding fails
-          resolve({
-            latitude,
-            longitude,
-            city: 'Unknown Location',
-            country: 'Unknown'
-          });
-        }
-      },
-      (error) => {
-        console.error('Geolocation error:', error);
-        let errorMessage = 'Failed to get location: ';
-        switch (error.code) {
-          case error.PERMISSION_DENIED:
-            errorMessage += 'Location access denied by user';
-            break;
-          case error.POSITION_UNAVAILABLE:
-            errorMessage += 'Location information unavailable';
-            break;
-          case error.TIMEOUT:
-            errorMessage += 'Location request timed out';
-            break;
-          default:
-            errorMessage += error.message;
-            break;
-        }
-        reject(new Error(errorMessage));
-      },
-      { 
-        enableHighAccuracy: true, 
-        timeout: 15000, 
-        maximumAge: 300000 
-      }
-    );
-  });
-};
-
-// Fetch weather data using OpenWeatherMap API
+// All the helper functions from the original Home component
 const fetchWeatherData = async (lat: number, lon: number): Promise<WeatherData> => {
   try {
     console.log('Fetching weather data for:', lat, lon, 'API Key:', OPENWEATHER_API_KEY ? 'Present' : 'Missing');
@@ -231,7 +144,6 @@ const fetchWeatherData = async (lat: number, lon: number): Promise<WeatherData> 
 
     // Process forecast data to get daily summaries (6 days excluding today)
     const dailyForecasts: WeatherData['daily'] = [];
-    const processedDates = new Set<string>();
     const today = new Date().toISOString().split('T')[0];
     const dailyData: { [key: string]: any[] } = {};
     
@@ -281,11 +193,11 @@ const fetchWeatherData = async (lat: number, lon: number): Promise<WeatherData> 
       current: {
         temperature_c: Math.round(currentData.main.temp),
         relative_humidity: currentData.main.humidity,
-        precipitation_probability: 0, // Current weather doesn't provide this
+        precipitation_probability: 0,
         wind_speed_kmh: Math.round(currentData.wind.speed * 3.6),
         wind_direction: getWindDirection(currentData.wind.deg),
         visibility_km: Math.round(currentData.visibility / 1000),
-        uv_index: 0, // Would need UV Index API
+        uv_index: 0,
         feels_like_c: Math.round(currentData.main.feels_like),
         pressure_mb: currentData.main.pressure,
         cloud_cover: currentData.clouds.all,
@@ -312,8 +224,8 @@ const getFallbackWeatherData = (lat: number, lon: number, city: string = 'Unknow
   // Generate hourly forecast for today (next 8 hours)
   const hourlyForecasts = [];
   for (let i = 1; i <= 8; i++) {
-    const futureTime = new Date(Date.now() + i * 3600000); // Each hour
-    const temp = 25 + Math.sin(i * 0.5) * 3; // Varying temperatures
+    const futureTime = new Date(Date.now() + i * 3600000);
+    const temp = 25 + Math.sin(i * 0.5) * 3;
     hourlyForecasts.push({
       time: futureTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       temperature_c: Math.round(temp),
@@ -361,8 +273,7 @@ const getWindDirection = (deg: number): string => {
 const fetchSoilData = async (lat: number, lon: number): Promise<SoilData> => {
   return new Promise((resolve) => {
     setTimeout(() => {
-      // Simulate soil data variations based on location
-      const latFactor = (lat - 20) / 10; // Normalize for Indian subcontinent
+      const latFactor = (lat - 20) / 10;
       const lonFactor = (lon - 75) / 10;
       
       resolve({
@@ -381,11 +292,10 @@ const fetchSoilData = async (lat: number, lon: number): Promise<SoilData> => {
   });
 };
 
-// Mock land data with elevation API integration
+// Mock land data
 const fetchLandData = async (lat: number, lon: number): Promise<LandData> => {
   return new Promise((resolve) => {
     setTimeout(() => {
-      // Simulate elevation and land characteristics
       const elevation = Math.round(200 + Math.sin(lat * 0.1) * 300 + Math.cos(lon * 0.1) * 200);
       
       resolve({
@@ -403,7 +313,7 @@ const fetchLandData = async (lat: number, lon: number): Promise<LandData> => {
   });
 };
 
-// AI recommendation using Gemini API
+// AI Recommendation function
 const getAIRecommendation = async (weather: WeatherData, soil: SoilData, land: LandData, crop: string, question?: string): Promise<string> => {
   try {
     const prompt = question || `As an expert agricultural advisor, analyze these farming conditions and provide specific recommendations:
@@ -511,8 +421,7 @@ Keep recommendations practical and specific to the current conditions and crop t
     console.error('Gemini AI error:', error);
     
     // Fallback to enhanced mock response if API fails
-    const enhancedResponses = [
-      `🌾 **AGRICULTURAL ADVISORY FOR ${crop.toUpperCase()}**
+    return `🌾 **AGRICULTURAL ADVISORY FOR ${crop.toUpperCase()}**
 
 📍 **Current Conditions in ${weather.location.city}:**
 - Temperature: ${weather.current.temperature_c}°C (${weather.current.description})
@@ -535,388 +444,154 @@ ${soil.moisture < 30 ? '🚨 URGENT: Soil moisture is low. Immediate irrigation 
 
 📋 **TODAY'S TASKS:**
 - ${weather.current.wind_speed_kmh < 15 ? '✅ Suitable for spraying operations' : '⚠️ High wind - avoid spraying'}
-- Field operations: ${weather.current.description.includes('rain') ? 'Postpone field work' : 'Proceed with planned activities'}`,
-
-      `🔬 **SOIL & WEATHER ANALYSIS FOR ${crop.toUpperCase()}**
-
-📊 **Soil Health Assessment:**
-- Type: ${soil.type} with ${soil.drainage.toLowerCase()} drainage
-- Organic Matter: ${soil.organic_matter}% ${soil.organic_matter >= 3 ? '(Excellent)' : soil.organic_matter >= 2 ? '(Good)' : '(Needs improvement)'}
-- Salinity: ${soil.salinity} ${soil.salinity < 1 ? '(Low)' : soil.salinity < 2 ? '(Moderate)' : '(High - monitor)'}
-
-🌡️ **Weather Impact Analysis:**
-- Current ${weather.current.temperature_c}°C is ${
-  crop === 'Rice' ? (weather.current.temperature_c >= 20 && weather.current.temperature_c <= 35 ? 'ideal for rice' : 'monitor stress') :
-  crop === 'Coconut' ? (weather.current.temperature_c >= 27 && weather.current.temperature_c <= 35 ? 'perfect for coconut' : 'monitor growth') :
-  crop === 'Black Pepper' ? (weather.current.temperature_c >= 23 && weather.current.temperature_c <= 32 ? 'optimal for pepper' : 'adjust care') :
-  'suitable for ' + crop.toLowerCase()
-}
-- Humidity ${weather.current.relative_humidity}% ${weather.current.relative_humidity >= 60 ? 'supports tropical crops' : 'may need irrigation support'}
-
-💡 **SPECIFIC RECOMMENDATIONS:**
-${crop === 'Coconut' ? '🥥 Coconut palms need regular watering. Check for button shedding.' :
-  crop === 'Black Pepper' ? '🌶️ Ensure proper support structures. Monitor for quick wilt disease.' :
-  crop === 'Cardamom' ? '🫚 Maintain 75-85% humidity. Provide shade during hot periods.' :
-  crop === 'Rubber' ? '🌳 Optimal tapping conditions. Monitor latex flow.' :
-  crop === 'Rice' ? '🌾 Check water levels in fields. Monitor for blast disease.' :
-  `🌱 Monitor ${crop.toLowerCase()} for optimal growth conditions.`}
-
-⏰ **TIMING RECOMMENDATIONS:**
-- Best watering time: Early morning (6-8 AM) or evening (5-7 PM)
-- Fertilizer application: ${soil.moisture > 40 ? 'Now suitable' : 'Wait until after irrigation'}`,
-
-      `🎯 **PRECISION FARMING ADVICE FOR ${crop.toUpperCase()}**
-
-🗺️ **Location Analysis (${weather.location.city}):**
-- Elevation: ${land.elevation}m | Slope: ${land.slope}° (${land.slope < 2 ? 'Flat terrain' : land.slope < 5 ? 'Gentle slope' : 'Steep slope'})
-- Aspect: ${land.aspect} facing
-- Water access: ${land.nearestWaterSource} km to nearest source
-
-🌊 **WATER MANAGEMENT STRATEGY:**
-- Current soil moisture: ${soil.moisture}% 
-- Irrigation ${land.irrigationAccess ? 'available' : 'not available'} on-site
-- ${soil.drainage === 'Well-drained' ? 'Good drainage prevents waterlogging' : 'Monitor for water retention issues'}
-
-🧪 **NUTRIENT OPTIMIZATION:**
-- Primary nutrients (NPK): ${soil.nitrogen}-${soil.phosphorus}-${soil.potassium}
-- ${soil.nitrogen < 60 ? 'Consider nitrogen supplementation' : 'Nitrogen levels adequate'}
-- ${soil.phosphorus < 50 ? 'Phosphorus boost recommended' : 'Phosphorus sufficient'}
-- ${soil.potassium < 70 ? 'Potassium application beneficial' : 'Potassium levels good'}
-
-⚡ **IMMEDIATE ACTIONS NEEDED:**
-1. ${weather.current.temperature_c > 35 ? 'Provide heat stress protection' : 'Continue normal operations'}
-2. ${soil.moisture < 35 ? 'Schedule irrigation within 24 hours' : 'Monitor moisture levels'}
-3. ${weather.current.relative_humidity > 85 ? 'Improve air circulation to prevent fungal issues' : 'Humidity levels manageable'}
-4. Check for ${crop.includes('Pepper') || crop.includes('Cardamom') ? 'spice-specific pests and diseases' : crop === 'Coconut' ? 'rhinoceros beetle and red palm weevil' : 'common agricultural pests'}
-
-📈 **GROWTH OPTIMIZATION:**
-- Weather conditions are ${weather.current.description.includes('clear') || weather.current.description.includes('sunny') ? 'excellent' : weather.current.description.includes('cloud') ? 'good' : 'challenging'} for photosynthesis
-- Wind speed ${weather.current.wind_speed_kmh} km/h is ${weather.current.wind_speed_kmh < 10 ? 'calm (good for treatments)' : weather.current.wind_speed_kmh < 20 ? 'moderate (suitable for most operations)' : 'strong (avoid spraying)'}
-- Visibility ${weather.current.visibility_km} km indicates ${weather.current.visibility_km > 8 ? 'clear conditions' : 'possible haze or moisture in air'}`
-    ];
-    
-    return enhancedResponses[Math.floor(Math.random() * enhancedResponses.length)];
+- Field operations: ${weather.current.description.includes('rain') ? 'Postpone field work' : 'Proceed with planned activities'}`;
   }
 };
 
-function Home() {
+function Dashboard({ location, crop, onBack }: DashboardProps) {
   const { t, language } = useLanguage();
-  const [location, setLocation] = useState('');
-  const [crop, setCrop] = useState('Rice');
-  const [currentLocation, setCurrentLocation] = useState<LocationData | null>(null);
   const [weatherData, setWeatherData] = useState<WeatherData | null>(null);
   const [soilData, setSoilData] = useState<SoilData | null>(null);
   const [landData, setLandData] = useState<LandData | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [locationLoading, setLocationLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState('overview');
+  
+  // AI Advisor state
   const [aiQuestion, setAiQuestion] = useState('');
   const [aiResponse, setAiResponse] = useState('');
   const [aiLoading, setAiLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState('overview');
 
-  // Get user's current location on component mount
+  // Load all data when component mounts
   useEffect(() => {
-    handleGetCurrentLocation();
-  }, []);
-
-  const handleGetCurrentLocation = async () => {
-    setLocationLoading(true);
-    setError(null);
-    try {
-      const locationData = await getCurrentLocation();
-      setCurrentLocation(locationData);
-      setLocation(`${locationData.city}, ${locationData.country}`);
-      await fetchAllData(locationData.latitude, locationData.longitude);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to get current location');
-      // Fallback to Delhi coordinates
-      const fallbackLocation = {
-        latitude: 28.6139,
-        longitude: 77.2090,
-        city: 'Delhi',
-        country: 'India'
-      };
-      setCurrentLocation(fallbackLocation);
-      setLocation('Delhi, India');
-      await fetchAllData(fallbackLocation.latitude, fallbackLocation.longitude);
-    } finally {
-      setLocationLoading(false);
-    }
-  };
-
-  const fetchAllData = async (lat?: number, lon?: number) => {
-    if (!currentLocation && (!lat || !lon)) return;
-    
-    const latitude = lat || currentLocation!.latitude;
-    const longitude = lon || currentLocation!.longitude;
-    
-    setLoading(true);
-    setError(null);
-    
-    try {
-      const [weather, soil, land] = await Promise.all([
-        fetchWeatherData(latitude, longitude),
-        fetchSoilData(latitude, longitude),
-        fetchLandData(latitude, longitude)
-      ]);
+    const fetchAllData = async () => {
+      setLoading(true);
+      setError(null);
       
-      setWeatherData(weather);
-      setSoilData(soil);
-      setLandData(land);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch data');
-    } finally {
-      setLoading(false);
-    }
-  };
+      try {
+        const [weather, soil, land] = await Promise.all([
+          fetchWeatherData(location.latitude, location.longitude),
+          fetchSoilData(location.latitude, location.longitude),
+          fetchLandData(location.latitude, location.longitude)
+        ]);
+        
+        setWeatherData(weather);
+        setSoilData(soil);
+        setLandData(land);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to fetch data');
+      } finally {
+        setLoading(false);
+      }
+    };
 
+    fetchAllData();
+  }, [location]);
+
+  // AI Question Handler
   const handleAIQuestion = async () => {
     if (!weatherData || !soilData || !landData || !aiQuestion.trim()) return;
-    
+
     setAiLoading(true);
     try {
       const response = await getAIRecommendation(weatherData, soilData, landData, crop, aiQuestion);
       setAiResponse(response);
       setAiQuestion('');
-    } catch (err) {
+    } catch (error) {
       setAiResponse('Failed to get AI response. Please try again.');
     } finally {
       setAiLoading(false);
     }
   };
 
-  const [basicRecommendation, setBasicRecommendation] = useState('');
-  const [recommendationLoading, setRecommendationLoading] = useState(false);
-
-  // Generate AI-powered basic recommendations
-  const generateBasicRecommendation = async () => {
-    if (!weatherData || !soilData || !landData) {
-      setBasicRecommendation(t('home.getting_ai_recommendation'));
-      return;
-    }
-
-    setRecommendationLoading(true);
-    try {
-      const quickPrompt = `As an agricultural expert, provide a brief 2-3 sentence recommendation for immediate action based on these conditions:
-
-Current Conditions:
-- Crop: ${crop}
-- Location: ${weatherData.location.city}
-- Temperature: ${weatherData.current.temperature_c}°C
-- Humidity: ${weatherData.current.relative_humidity}%
-- Weather: ${weatherData.current.description}
-- Soil Moisture: ${soilData.moisture}%
-- Soil pH: ${soilData.ph}
-- Soil Type: ${soilData.type}
-- Drought Risk: ${landData.droughtRisk}
-- Flood Risk: ${landData.floodRisk}
-
-Provide ONE priority action and ONE monitoring advice. Keep it concise and actionable.`;
-
-      console.log('Generating basic AI recommendation...');
-      
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${GEMINI_API_KEY}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          contents: [{
-            parts: [{
-              text: quickPrompt
-            }]
-          }],
-          generationConfig: {
-            temperature: 0.5,
-            topK: 20,
-            topP: 0.8,
-            maxOutputTokens: 200,
-          }
-        })
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        if (data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts[0]) {
-          setBasicRecommendation(data.candidates[0].content.parts[0].text);
-          return;
-        }
-      }
-    } catch (error) {
-      console.error('Basic recommendation AI error:', error);
-    }
-
-    // Enhanced fallback recommendations
-    const temp = weatherData.current.temperature_c;
-    const humidity = weatherData.current.relative_humidity;
-    const soilMoisture = soilData.moisture;
+  const translateWeatherDescription = (description: string) => {
+    const normalizedDesc = description.toLowerCase().trim();
     
-    let recommendation = '';
-    let priority = '';
-    let monitoring = '';
+    // Exact matches for common weather conditions
+    const weatherTranslationMap: { [key: string]: string } = {
+      'clear sky': 'weather.clear',
+      'few clouds': 'weather.few_clouds',
+      'scattered clouds': 'weather.scattered_clouds',
+      'broken clouds': 'weather.broken_clouds',
+      'overcast clouds': 'weather.overcast',
+      'light rain': 'weather.light_rain',
+      'moderate rain': 'weather.moderate_rain',
+      'heavy rain': 'weather.heavy_rain',
+      'thunderstorm': 'weather.thunderstorm',
+      'mist': 'weather.mist',
+      'fog': 'weather.fog',
+    };
 
-    // Priority action based on conditions
-    if (soilMoisture < 30) {
-      priority = `🚨 URGENT: Soil moisture critically low (${soilMoisture}%). Immediate irrigation required for ${crop}.`;
-    } else if (temp > 35) {
-      priority = `🌡️ HIGH HEAT: Temperature ${temp}°C. Provide shade protection and increase watering frequency for ${crop}.`;
-    } else if (temp < 10) {
-      priority = `❄️ FROST RISK: Low temperature ${temp}°C. Protect ${crop} from frost damage immediately.`;
-    } else if (humidity > 85 && temp > 25) {
-      priority = `🍄 DISEASE RISK: High humidity (${humidity}%) and temperature. Monitor ${crop} for fungal diseases.`;
-    } else if (soilData.ph < 5.5 || soilData.ph > 8.0) {
-      priority = `⚖️ SOIL pH: pH level ${soilData.ph} needs attention. ${soilData.ph < 5.5 ? 'Apply lime to reduce acidity' : 'Apply sulfur to reduce alkalinity'}.`;
-    } else {
-      priority = `✅ CONDITIONS FAVORABLE: Current conditions support healthy ${crop} growth.`;
+    // Check for exact matches first
+    if (weatherTranslationMap[normalizedDesc]) {
+      return t(weatherTranslationMap[normalizedDesc]);
     }
 
-    // Monitoring advice
-    if (crop === 'Rice') {
-      monitoring = '💧 Monitor water levels in fields and watch for blast disease symptoms.';
-    } else if (crop === 'Coconut') {
-      monitoring = '🥥 Check for button shedding and rhinoceros beetle activity.';
-    } else if (crop === 'Black Pepper') {
-      monitoring = '🌶️ Inspect support structures and monitor for quick wilt disease.';
-    } else if (crop === 'Cardamom') {
-      monitoring = '🫚 Maintain 75-85% humidity and watch for thrips damage.';
-    } else if (crop === 'Rubber') {
-      monitoring = '🌳 Check latex flow consistency and panel health.';
-    } else if (crop === 'Tea') {
-      monitoring = '🍃 Monitor for tea mosquito bug and maintain pruning schedule.';
-    } else if (crop === 'Coffee') {
-      monitoring = '☕ Watch for white stem borer and berry borer activity.';
-    } else {
-      monitoring = `🔍 Regular monitoring recommended for optimal ${crop.toLowerCase()} health.`;
+    // Pattern matching for partial matches
+    if (normalizedDesc.includes('rain')) {
+      if (normalizedDesc.includes('light')) return t('weather.light_rain');
+      if (normalizedDesc.includes('heavy')) return t('weather.heavy_rain');
+      return t('weather.moderate_rain');
     }
+    
+    if (normalizedDesc.includes('cloud')) {
+      if (normalizedDesc.includes('few')) return t('weather.few_clouds');
+      if (normalizedDesc.includes('scattered')) return t('weather.scattered_clouds');
+      if (normalizedDesc.includes('broken')) return t('weather.broken_clouds');
+      if (normalizedDesc.includes('overcast')) return t('weather.overcast');
+      return t('weather.cloudy');
+    }
+    
+    if (normalizedDesc.includes('clear')) return t('weather.clear');
+    if (normalizedDesc.includes('sunny')) return t('weather.sunny');
+    if (normalizedDesc.includes('storm')) return t('weather.thunderstorm');
+    if (normalizedDesc.includes('mist') || normalizedDesc.includes('fog')) return t('weather.mist');
 
-    recommendation = `${priority} ${monitoring}`;
-    setBasicRecommendation(recommendation);
-    setRecommendationLoading(false);
+    // Fallback: return properly capitalized original description
+    return description.charAt(0).toUpperCase() + description.slice(1);
   };
 
-  // Set initial recommendation text
-  useEffect(() => {
-    if (!basicRecommendation) {
-      setBasicRecommendation(t('home.getting_ai_recommendation'));
-    }
-  }, [t]);
-
-  // Generate recommendations when data changes
-  useEffect(() => {
-    if (weatherData && soilData && landData) {
-      generateBasicRecommendation();
-    }
-  }, [weatherData, soilData, landData, crop]);
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-green-50 via-blue-50 to-yellow-50 flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="w-12 h-12 animate-spin text-green-600 mx-auto mb-4" />
+          <h2 className="text-xl font-semibold text-gray-800 mb-2">Loading Your Dashboard</h2>
+          <p className="text-gray-600">Fetching weather, soil, and land data...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 via-blue-50 to-yellow-50 p-4 md:p-6">
       <div className="max-w-7xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="text-center space-y-4">
-          <div className="flex items-center justify-center gap-3">
-            <div className="p-3 bg-green-600 rounded-2xl">
-              <Tractor className="w-8 h-8 text-white" />
-            </div>
-            <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-green-600 to-blue-600 bg-clip-text text-transparent">
-              {t('home.title')}
-            </h1>
+        {/* Header with Back Button */}
+        <div className="flex items-center justify-between">
+          <button
+            onClick={onBack}
+            className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-gray-800 hover:bg-white/50 rounded-xl transition-all"
+          >
+            <ArrowLeft className="w-5 h-5" />
+            <span>Back to Setup</span>
+          </button>
+          
+          <div className="flex items-center gap-3 bg-white/80 backdrop-blur-sm px-4 py-2 rounded-xl">
+            <MapPin className="w-4 h-4 text-gray-600" />
+            <span className="text-sm font-medium text-gray-800">
+              {location.city}, {location.country} | {crop}
+            </span>
           </div>
-          <p className="text-gray-600 max-w-3xl mx-auto">
-            {t('home.subtitle')}
-          </p>
         </div>
 
-        {/* Controls */}
-        <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                <MapPin className="w-4 h-4 inline mr-1" />
-                {t('home.location')}
-              </label>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={location}
-                  onChange={(e) => setLocation(e.target.value)}
-                  placeholder={t('home.current_location')}
-                  className="flex-1 px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all"
-                />
-                <button
-                  onClick={handleGetCurrentLocation}
-                  disabled={locationLoading}
-                  className="px-4 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center gap-2"
-                  title={t('home.current_location')}
-                >
-                  {locationLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Navigation className="w-4 h-4" />}
-                </button>
-              </div>
-            </div>
-            
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                <Sprout className="w-4 h-4 inline mr-1" />
-                {t('home.select_crop')}
-              </label>
-              <select
-                value={crop}
-                onChange={(e) => setCrop(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all"
-              >
-                <option value="Rice">{t('crops.rice')}</option>
-                <option value="Coconut">{t('crops.coconut')}</option>
-                <option value="Black Pepper">{t('crops.black_pepper')}</option>
-                <option value="Cardamom">{t('crops.cardamom')}</option>
-                <option value="Rubber">{t('crops.rubber')}</option>
-                <option value="Tea">{t('crops.tea')}</option>
-                <option value="Coffee">{t('crops.coffee')}</option>
-                <option value="Banana">{t('crops.banana')}</option>
-                <option value="Cashew">{t('crops.cashew')}</option>
-                <option value="Ginger">{t('crops.ginger')}</option>
-                <option value="Turmeric">{t('crops.turmeric')}</option>
-                <option value="Tapioca">{t('crops.tapioca')}</option>
-                <option value="Areca Nut">{t('crops.areca_nut')}</option>
-                <option value="Vanilla">{t('crops.vanilla')}</option>
-                <option value="Cocoa">{t('crops.cocoa')}</option>
-                <option value="Nutmeg">{t('crops.nutmeg')}</option>
-                <option value="Cloves">{t('crops.cloves')}</option>
-                <option value="Cinnamon">{t('crops.cinnamon')}</option>
-                <option value="Jackfruit">{t('crops.jackfruit')}</option>
-                <option value="Mango">{t('crops.mango')}</option>
-                <option value="Papaya">{t('crops.papaya')}</option>
-                <option value="Pineapple">{t('crops.pineapple')}</option>
-                <option value="Sugarcane">Sugarcane</option>
-                <option value="Sweet Potato">Sweet Potato</option>
-                <option value="Yam">Yam</option>
-                <option value="Wheat">Wheat</option>
-                <option value="Corn">Corn</option>
-                <option value="Barley">Barley</option>
-                <option value="Soybean">Soybean</option>
-                <option value="Cotton">Cotton</option>
-                <option value="Potato">Potato</option>
-                <option value="Tomato">Tomato</option>
-              </select>
-            </div>
-            
-            <button
-              onClick={() => currentLocation && fetchAllData()}
-              disabled={loading || !currentLocation}
-              className="px-6 py-3 bg-gradient-to-r from-green-600 to-blue-600 text-white rounded-xl hover:from-green-700 hover:to-blue-700 transition-all disabled:opacity-50 flex items-center justify-center gap-2 font-semibold"
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  {t('common.loading')}
-                </>
-              ) : (
-                <>
-                  <RefreshCw className="w-4 h-4" />
-                  {t('home.refresh')}
-                </>
-              )}
-            </button>
-          </div>
+        {/* Main Title */}
+        <div className="text-center">
+          <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-green-600 to-blue-600 bg-clip-text text-transparent mb-2">
+            Your Farm Dashboard
+          </h1>
+          <p className="text-gray-600">
+            Personalized insights for {crop} farming in {location.city}
+          </p>
         </div>
 
         {error && (
@@ -952,29 +627,29 @@ Provide ONE priority action and ONE monitoring advice. Keep it concise and actio
         </div>
 
         {/* Content based on active tab */}
-        {activeTab === 'overview' && (
+        {activeTab === 'overview' && weatherData && soilData && landData && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Current Weather */}
+            {/* Current Weather Card */}
             <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
                   <CloudSun className="w-6 h-6 text-blue-600" />
-                  <h3 className="text-lg font-bold text-gray-800">{t('home.weather')}</h3>
+                  <h3 className="text-lg font-bold text-gray-800">{t('home.current_weather')}</h3>
                 </div>
                 <div className="text-xs text-gray-500 capitalize">
-                  {weatherData?.current.description}
+                  {translateWeatherDescription(weatherData.current.description)}
                 </div>
               </div>
               
               <div className="text-center mb-6">
                 <div className="text-4xl font-bold text-gray-800 mb-2">
-                  {loading ? '---' : `${weatherData?.current.temperature_c || '--'}°C`}
+                  {weatherData.current.temperature_c}°C
                 </div>
                 <div className="text-gray-600">
-                  {t('home.feels_like')} {weatherData?.current.feels_like_c || '--'}°C
+                  {t('home.feels_like')} {weatherData.current.feels_like_c}°C
                 </div>
                 <div className="text-sm text-gray-500 mt-2">
-                  {weatherData?.location.city}, {weatherData?.location.country}
+                  {weatherData.location.city}, {weatherData.location.country}
                 </div>
               </div>
               
@@ -983,175 +658,145 @@ Provide ONE priority action and ONE monitoring advice. Keep it concise and actio
                   <Droplets className="w-4 h-4 text-blue-500" />
                   <span className="text-gray-600">{t('home.humidity')}</span>
                   <span className="ml-auto font-semibold">
-                    {loading ? '--' : `${weatherData?.current.relative_humidity || '--'}%`}
+                    {weatherData.current.relative_humidity}%
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
                   <Wind className="w-4 h-4 text-gray-500" />
                   <span className="text-gray-600">{t('home.wind_speed')}</span>
                   <span className="ml-auto font-semibold">
-                    {loading ? '--' : `${weatherData?.current.wind_speed_kmh || '--'} km/h`}
+                    {weatherData.current.wind_speed_kmh} km/h
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
                   <Eye className="w-4 h-4 text-green-500" />
                   <span className="text-gray-600">{t('home.visibility')}</span>
                   <span className="ml-auto font-semibold">
-                    {loading ? '--' : `${weatherData?.current.visibility_km || '--'} km`}
+                    {weatherData.current.visibility_km} km
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
                   <Activity className="w-4 h-4 text-purple-500" />
                   <span className="text-gray-600">{t('home.pressure')}</span>
                   <span className="ml-auto font-semibold">
-                    {loading ? '--' : `${weatherData?.current.pressure_mb || '--'} mb`}
+                    {weatherData.current.pressure_mb} mb
                   </span>
                 </div>
               </div>
             </div>
 
-            {/* Soil Status */}
+            {/* Soil Status Card */}
             <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
               <div className="flex items-center gap-2 mb-4">
                 <Mountain className="w-6 h-6 text-amber-600" />
-                <h3 className="text-lg font-bold text-gray-800">Soil Status</h3>
+                <h3 className="text-lg font-bold text-gray-800">{t('home.soil')}</h3>
               </div>
               
               <div className="space-y-4">
                 <div className="flex justify-between items-center">
                   <span className="text-gray-600">{t('home.soil_type')}</span>
-                  <span className="font-semibold">{soilData?.type || t('common.loading')}</span>
+                  <span className="font-semibold">{soilData.type || t('common.loading')}</span>
                 </div>
                 
                 <div>
                   <div className="flex justify-between items-center mb-2">
                     <span className="text-gray-600">{t('home.soil_moisture')}</span>
-                    <span className="font-semibold">{soilData?.moisture || '--'}%</span>
+                    <span className="font-semibold">{soilData.moisture}%</span>
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-2">
                     <div 
                       className="bg-blue-500 h-2 rounded-full transition-all duration-300"
-                      style={{ width: `${Math.min((soilData?.moisture || 0), 100)}%` }}
+                      style={{ width: `${Math.min(soilData.moisture, 100)}%` }}
                     ></div>
                   </div>
                 </div>
                 
                 <div>
                   <div className="flex justify-between items-center mb-2">
-                    <span className="text-gray-600">{t('home.ph_level')}</span>
-                    <span className="font-semibold">{soilData?.ph || '--'}</span>
+                    <span className="text-gray-600">{t('home.soil_ph')}</span>
+                    <span className="font-semibold">{soilData.ph}</span>
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-2">
                     <div 
                       className={`h-2 rounded-full transition-all duration-300 ${
-                        (soilData?.ph || 0) >= 6.0 && (soilData?.ph || 0) <= 7.5 
-                          ? 'bg-green-500' 
-                          : 'bg-yellow-500'
+                        soilData.ph >= 6.0 && soilData.ph <= 7.5 ? 'bg-green-500' : 'bg-yellow-500'
                       }`}
-                      style={{ width: `${Math.min(((soilData?.ph || 0) / 14) * 100, 100)}%` }}
+                      style={{ width: `${Math.min((soilData.ph / 14) * 100, 100)}%` }}
                     ></div>
                   </div>
                 </div>
                 
                 <div className="grid grid-cols-3 gap-3 text-xs">
                   <div className="text-center">
-                    <div className="font-semibold text-lg text-blue-600">{soilData?.nitrogen || '--'}</div>
-                    <div className="text-gray-500">N</div>
+                    <div className="font-semibold text-green-600">N</div>
+                    <div className="text-gray-600">{soilData.nitrogen}%</div>
                   </div>
                   <div className="text-center">
-                    <div className="font-semibold text-lg text-orange-600">{soilData?.phosphorus || '--'}</div>
-                    <div className="text-gray-500">P</div>
+                    <div className="font-semibold text-blue-600">P</div>
+                    <div className="text-gray-600">{soilData.phosphorus}%</div>
                   </div>
                   <div className="text-center">
-                    <div className="font-semibold text-lg text-purple-600">{soilData?.potassium || '--'}</div>
-                    <div className="text-gray-500">K</div>
+                    <div className="font-semibold text-purple-600">K</div>
+                    <div className="text-gray-600">{soilData.potassium}%</div>
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Recommendations */}
+            {/* Quick Recommendations Card */}
             <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2">
-                  <Leaf className="w-6 h-6 text-green-600" />
-                  <h3 className="text-lg font-bold text-gray-800">AI Recommendations</h3>
-                </div>
-                <button
-                  onClick={generateBasicRecommendation}
-                  disabled={recommendationLoading || !weatherData || !soilData || !landData}
-                  className="p-2 text-gray-500 hover:text-green-600 transition-colors disabled:opacity-50"
-                  title="Refresh AI recommendations"
-                >
-                  <RefreshCw className={`w-4 h-4 ${recommendationLoading ? 'animate-spin' : ''}`} />
-                </button>
+              <div className="flex items-center gap-2 mb-4">
+                <Leaf className="w-6 h-6 text-green-600" />
+                <h3 className="text-lg font-bold text-gray-800">Quick Insights</h3>
               </div>
               
               <div className="space-y-4">
                 <div className="p-4 bg-gradient-to-r from-green-50 to-blue-50 rounded-xl border border-green-200">
                   <div className="flex items-start gap-2">
-                    {recommendationLoading ? (
-                      <Loader2 className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0 animate-spin" />
-                    ) : (
-                      <Bot className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
-                    )}
-                    <div className="flex-1">
-                      {recommendationLoading ? (
-                        <div className="space-y-2">
-                          <div className="h-3 bg-gray-200 rounded animate-pulse"></div>
-                          <div className="h-3 bg-gray-200 rounded w-3/4 animate-pulse"></div>
-                        </div>
-                      ) : (
-                        <p className="text-gray-700 text-sm leading-relaxed whitespace-pre-line">
-                          {basicRecommendation}
-                        </p>
-                      )}
-                      {!recommendationLoading && (
-                        <div className="text-xs text-gray-500 mt-2 flex items-center gap-1">
-                          <Zap className="w-3 h-3" />
-                          
-                        </div>
-                      )}
+                    <CheckCircle className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <h4 className="font-semibold text-green-800 mb-1">Weather Status</h4>
+                      <p className="text-sm text-green-700">
+                        Current conditions are {weatherData.current.temperature_c > 35 ? 'hot' : weatherData.current.temperature_c < 10 ? 'cold' : 'suitable'} for {crop} cultivation.
+                      </p>
                     </div>
                   </div>
                 </div>
                 
-                {landData && (
-                  <div className="grid grid-cols-2 gap-3 text-sm">
-                    <div>
-                      <span className="text-gray-500">{t('home.elevation')}</span>
-                      <div className="font-semibold">{landData.elevation}m</div>
-                    </div>
-                    <div>
-                      <span className="text-gray-500">{t('home.drainage')}</span>
-                      <div className="font-semibold">{landData.drainage}</div>
-                    </div>
-                    <div>
-                      <span className="text-gray-500">{t('home.flood_risk')}</span>
-                      <div className={`font-semibold ${
-                        landData.floodRisk === 'Low' ? 'text-green-600' : 
-                        landData.floodRisk === 'Moderate' ? 'text-yellow-600' : 'text-red-600'
-                      }`}>
-                        {landData.floodRisk}
-                      </div>
-                    </div>
-                    <div>
-                      <span className="text-gray-500">{t('home.drought_risk')}</span>
-                      <div className={`font-semibold ${
-                        landData.droughtRisk === 'Low' ? 'text-green-600' : 
-                        landData.droughtRisk === 'Moderate' ? 'text-yellow-600' : 'text-red-600'
-                      }`}>
-                        {landData.droughtRisk}
-                      </div>
-                    </div>
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-gray-600">Soil Moisture</span>
+                    <span className={`font-semibold ${soilData.moisture < 40 ? 'text-red-600' : 'text-green-600'}`}>
+                      {soilData.moisture < 40 ? 'Low - Irrigation needed' : 'Good'}
+                    </span>
                   </div>
-                )}
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-gray-600">pH Level</span>
+                    <span className={`font-semibold ${soilData.ph >= 6.0 && soilData.ph <= 7.5 ? 'text-green-600' : 'text-yellow-600'}`}>
+                      {soilData.ph >= 6.0 && soilData.ph <= 7.5 ? 'Optimal' : 'Needs attention'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-gray-600">Elevation</span>
+                    <span className="font-semibold">{landData.elevation}m</span>
+                  </div>
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-gray-600">Flood Risk</span>
+                    <span className={`font-semibold ${
+                      landData.floodRisk === 'Low' ? 'text-green-600' : 
+                      landData.floodRisk === 'Moderate' ? 'text-yellow-600' : 'text-red-600'
+                    }`}>
+                      {landData.floodRisk}
+                    </span>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
         )}
 
-        {activeTab === 'weather' && (
+        {/* Weather Tab */}
+        {activeTab === 'weather' && weatherData && (
           <div className="space-y-6">
             {/* Detailed Weather Info */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -1162,14 +807,14 @@ Provide ONE priority action and ONE monitoring advice. Keep it concise and actio
                   </div>
                   <div>
                     <h4 className="font-semibold text-gray-800">{t('home.temperature')}</h4>
-                    <p className="text-xs text-gray-500">{t('weather.current_conditions')}</p>
+                    <p className="text-xs text-gray-500">Current conditions</p>
                   </div>
                 </div>
                 <div className="text-2xl font-bold text-gray-800 mb-1">
-                  {weatherData?.current.temperature_c || '--'}°C
+                  {weatherData.current.temperature_c}°C
                 </div>
                 <p className="text-sm text-gray-600">
-                  {t('home.feels_like')} {weatherData?.current.feels_like_c || '--'}°C
+                  {t('home.feels_like')} {weatherData.current.feels_like_c}°C
                 </p>
               </div>
 
@@ -1180,16 +825,16 @@ Provide ONE priority action and ONE monitoring advice. Keep it concise and actio
                   </div>
                   <div>
                     <h4 className="font-semibold text-gray-800">{t('home.humidity')}</h4>
-                    <p className="text-xs text-gray-500">{t('weather.relative_humidity')}</p>
+                    <p className="text-xs text-gray-500">Relative humidity</p>
                   </div>
                 </div>
                 <div className="text-2xl font-bold text-gray-800 mb-1">
-                  {weatherData?.current.relative_humidity || '--'}%
+                  {weatherData.current.relative_humidity}%
                 </div>
                 <div className="w-full bg-gray-200 rounded-full h-2">
                   <div 
                     className="bg-blue-500 h-2 rounded-full transition-all duration-300"
-                    style={{ width: `${weatherData?.current.relative_humidity || 0}%` }}
+                    style={{ width: `${weatherData.current.relative_humidity}%` }}
                   ></div>
                 </div>
               </div>
@@ -1200,16 +845,16 @@ Provide ONE priority action and ONE monitoring advice. Keep it concise and actio
                     <Wind className="w-5 h-5 text-gray-600" />
                   </div>
                   <div>
-                    <h4 className="font-semibold text-gray-800">{t('weather.wind')}</h4>
-                    <p className="text-xs text-gray-500">{t('weather.speed_direction')}</p>
+                    <h4 className="font-semibold text-gray-800">Wind</h4>
+                    <p className="text-xs text-gray-500">Speed & direction</p>
                   </div>
                 </div>
                 <div className="text-2xl font-bold text-gray-800 mb-1">
-                  {weatherData?.current.wind_speed_kmh || '--'} km/h
+                  {weatherData.current.wind_speed_kmh} km/h
                 </div>
                 <p className="text-sm text-gray-600 flex items-center gap-1">
                   <Compass className="w-3 h-3" />
-                  {weatherData?.current.wind_direction || '--'}
+                  {weatherData.current.wind_direction}
                 </p>
               </div>
 
@@ -1220,11 +865,11 @@ Provide ONE priority action and ONE monitoring advice. Keep it concise and actio
                   </div>
                   <div>
                     <h4 className="font-semibold text-gray-800">{t('home.pressure')}</h4>
-                    <p className="text-xs text-gray-500">{t('weather.atmospheric_pressure')}</p>
+                    <p className="text-xs text-gray-500">Atmospheric pressure</p>
                   </div>
                 </div>
                 <div className="text-2xl font-bold text-gray-800 mb-1">
-                  {weatherData?.current.pressure_mb || '--'}
+                  {weatherData.current.pressure_mb}
                 </div>
                 <p className="text-sm text-gray-600">mb</p>
               </div>
@@ -1237,70 +882,27 @@ Provide ONE priority action and ONE monitoring advice. Keep it concise and actio
                 {t('weather.hourly_forecast')}
               </h3>
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-8 gap-4">
-                {(weatherData?.hourly || []).map((hour, index) => {
-                  const translateWeatherDescription = (description: string) => {
-                    const normalizedDesc = description.toLowerCase().trim();
-                    const weatherTranslationMap = {
-                      'clear sky': 'weather.clear',
-                      'few clouds': 'weather.partly_cloudy',
-                      'scattered clouds': 'weather.partly_cloudy',
-                      'broken clouds': 'weather.cloudy',
-                      'overcast clouds': 'weather.overcast',
-                      'overcast': 'weather.overcast',
-                      'light rain': 'weather.light_rain',
-                      'moderate rain': 'weather.light_rain',
-                      'heavy intensity rain': 'weather.heavy_rain',
-                      'heavy rain': 'weather.heavy_rain',
-                      'partly cloudy': 'weather.partly_cloudy',
-                      'cloudy': 'weather.cloudy',
-                      'sunny': 'weather.sunny',
-                      'clear': 'weather.clear'
-                    };
-                    
-                    if (weatherTranslationMap[normalizedDesc]) {
-                      return t(weatherTranslationMap[normalizedDesc]);
-                    }
-                    
-                    // Check for partial matches
-                    if (normalizedDesc.includes('rain')) {
-                      return t('weather.light_rain');
-                    }
-                    if (normalizedDesc.includes('cloud')) {
-                      if (normalizedDesc.includes('few') || normalizedDesc.includes('scattered')) {
-                        return t('weather.partly_cloudy');
-                      } else {
-                        return t('weather.cloudy');
-                      }
-                    }
-                    if (normalizedDesc.includes('clear') || normalizedDesc.includes('sunny')) {
-                      return t('weather.clear');
-                    }
-                    
-                    return description;
-                  };
-                  
-                  return (
-                    <div key={index} className="bg-gradient-to-br from-green-50 to-blue-50 rounded-xl p-3 border border-gray-100 text-center">
-                      <div className="text-xs font-medium text-gray-600 mb-2">
-                        {hour.time}
-                      </div>
-                      <div className="text-lg font-bold text-gray-800 mb-1">
-                        {Math.round(hour.temperature_c)}°
-                      </div>
-                      <div className="text-xs text-gray-600 mb-2">
-                        {translateWeatherDescription(hour.description)}
-                      </div>
-                      <div className="flex items-center justify-center gap-1 text-xs text-blue-600 mb-1">
-                        <Droplets className="w-3 h-3" />
-                        {Math.round(hour.precip_probability)}%
-                      </div>
-                      <div className="flex items-center justify-center gap-1 text-xs text-gray-500">
-                        <Wind className="w-3 h-3" />
-                        {Math.round(hour.wind_speed_kmh)} km/h
-                      </div>
+                {weatherData.hourly.map((hour, index) => (
+                  <div key={index} className="bg-gradient-to-br from-green-50 to-blue-50 rounded-xl p-3 border border-gray-100 text-center">
+                    <div className="text-xs font-medium text-gray-600 mb-2">
+                      {hour.time}
                     </div>
-                  );
-                })}
+                    <div className="text-lg font-bold text-gray-800 mb-1">
+                      {Math.round(hour.temperature_c)}°
+                    </div>
+                    <div className="text-xs text-gray-600 mb-2">
+                      {translateWeatherDescription(hour.description)}
+                    </div>
+                    <div className="flex items-center justify-center gap-1 text-xs text-blue-600 mb-1">
+                      <Droplets className="w-3 h-3" />
+                      {Math.round(hour.precip_probability)}%
+                    </div>
+                    <div className="flex items-center justify-center gap-1 text-xs text-gray-500">
+                      <Wind className="w-3 h-3" />
+                      {Math.round(hour.wind_speed_kmh)} km/h
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
 
@@ -1311,72 +913,9 @@ Provide ONE priority action and ONE monitoring advice. Keep it concise and actio
                 {t('weather.forecast_6_day')}
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-                {(weatherData?.daily || []).map((day, index) => {
+                {weatherData.daily.map((day, index) => {
                   const dayDate = new Date(day.date);
-                  const dayName = dayDate.toLocaleDateString(language === 'ml' ? 'ml-IN' : 'en-US', { weekday: 'short' });
-                  
-                  // Function to translate weather description (same as hourly)
-                  const translateWeatherDescription = (description: string) => {
-                    const normalizedDesc = description.toLowerCase().trim();
-                    const weatherTranslationMap = {
-                      'clear sky': 'weather.clear',
-                      'few clouds': 'weather.partly_cloudy',
-                      'scattered clouds': 'weather.partly_cloudy',
-                      'broken clouds': 'weather.cloudy',
-                      'overcast clouds': 'weather.overcast',
-                      'overcast': 'weather.overcast',
-                      'light rain': 'weather.light_rain',
-                      'moderate rain': 'weather.light_rain',
-                      'heavy intensity rain': 'weather.heavy_rain',
-                      'heavy rain': 'weather.heavy_rain',
-                      'thunderstorm': 'weather.thunderstorm',
-                      'mist': 'weather.mist',
-                      'fog': 'weather.fog',
-                      'partly cloudy': 'weather.partly_cloudy',
-                      'cloudy': 'weather.cloudy',
-                      'sunny': 'weather.sunny',
-                      'clear': 'weather.clear'
-                    };
-                    
-                    if (weatherTranslationMap[normalizedDesc]) {
-                      return t(weatherTranslationMap[normalizedDesc]);
-                    }
-                    
-                    // Check for partial matches
-                    if (normalizedDesc.includes('rain')) {
-                      if (normalizedDesc.includes('light') || normalizedDesc.includes('drizzle')) {
-                        return t('weather.light_rain');
-                      } else if (normalizedDesc.includes('heavy')) {
-                        return t('weather.heavy_rain');
-                      } else {
-                        return t('weather.rainy');
-                      }
-                    }
-                    if (normalizedDesc.includes('cloud')) {
-                      if (normalizedDesc.includes('few') || normalizedDesc.includes('scattered')) {
-                        return t('weather.partly_cloudy');
-                      } else if (normalizedDesc.includes('overcast') || normalizedDesc.includes('broken')) {
-                        return t('weather.overcast');
-                      } else {
-                        return t('weather.cloudy');
-                      }
-                    }
-                    if (normalizedDesc.includes('clear') || normalizedDesc.includes('sunny')) {
-                      return t('weather.clear');
-                    }
-                    if (normalizedDesc.includes('thunder')) {
-                      return t('weather.thunderstorm');
-                    }
-                    if (normalizedDesc.includes('mist')) {
-                      return t('weather.mist');
-                    }
-                    if (normalizedDesc.includes('fog')) {
-                      return t('weather.fog');
-                    }
-                    
-                    // Return original description if no translation found
-                    return description.charAt(0).toUpperCase() + description.slice(1);
-                  };
+                  const dayName = dayDate.toLocaleDateString('en-US', { weekday: 'short' });
                   
                   return (
                     <div key={day.date} className="bg-gradient-to-br from-blue-50 to-green-50 rounded-xl p-4 border border-gray-100">
@@ -1410,7 +949,8 @@ Provide ONE priority action and ONE monitoring advice. Keep it concise and actio
           </div>
         )}
 
-        {activeTab === 'soil' && (
+        {/* Soil Tab */}
+        {activeTab === 'soil' && soilData && landData && (
           <div className="space-y-6">
             {/* Soil Analysis */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -1423,78 +963,78 @@ Provide ONE priority action and ONE monitoring advice. Keep it concise and actio
                   <div>
                     <div className="flex justify-between items-center mb-2">
                       <span className="text-gray-600">{t('soil.ph_level')}</span>
-                      <span className="font-semibold">{soilData?.ph || '--'}</span>
+                      <span className="font-semibold">{soilData.ph}</span>
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-3 mb-2">
                       <div 
                         className={`h-3 rounded-full transition-all duration-300 ${
-                          (soilData?.ph || 0) >= 6.0 && (soilData?.ph || 0) <= 7.5 
+                          soilData.ph >= 6.0 && soilData.ph <= 7.5 
                             ? 'bg-green-500' 
-                            : (soilData?.ph || 0) < 6.0 
+                            : soilData.ph < 6.0 
                               ? 'bg-red-500' 
                               : 'bg-blue-500'
                         }`}
-                        style={{ width: `${Math.min(((soilData?.ph || 0) / 14) * 100, 100)}%` }}
+                        style={{ width: `${Math.min((soilData.ph / 14) * 100, 100)}%` }}
                       ></div>
                     </div>
                     <div className="text-xs text-gray-500">
-                      {(soilData?.ph || 0) >= 6.0 && (soilData?.ph || 0) <= 7.5 
-                        ? t('soil.optimal_range')
-                        : (soilData?.ph || 0) < 6.0 
-                          ? t('soil.acidic_liming')
-                          : t('soil.alkaline_sulfur')}
+                      {soilData.ph >= 6.0 && soilData.ph <= 7.5 
+                        ? 'Optimal range for most crops'
+                        : soilData.ph < 6.0 
+                          ? 'Acidic - consider liming'
+                          : 'Alkaline - consider sulfur application'}
                     </div>
                   </div>
 
                   <div>
                     <div className="flex justify-between items-center mb-2">
                       <span className="text-gray-600">{t('soil.moisture_content')}</span>
-                      <span className="font-semibold">{soilData?.moisture || '--'}%</span>
+                      <span className="font-semibold">{soilData.moisture}%</span>
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-3 mb-2">
                       <div 
                         className={`h-3 rounded-full transition-all duration-300 ${
-                          (soilData?.moisture || 0) >= 40 && (soilData?.moisture || 0) <= 70 
+                          soilData.moisture >= 40 && soilData.moisture <= 70 
                             ? 'bg-blue-500' 
-                            : (soilData?.moisture || 0) < 40 
+                            : soilData.moisture < 40 
                               ? 'bg-orange-500' 
                               : 'bg-red-500'
                         }`}
-                        style={{ width: `${Math.min((soilData?.moisture || 0), 100)}%` }}
+                        style={{ width: `${Math.min(soilData.moisture, 100)}%` }}
                       ></div>
                     </div>
                     <div className="text-xs text-gray-500">
-                      {(soilData?.moisture || 0) >= 40 && (soilData?.moisture || 0) <= 70 
-                        ? t('soil.good_moisture')
-                        : (soilData?.moisture || 0) < 40 
-                          ? t('soil.low_irrigation')
-                          : t('soil.high_drainage')}
+                      {soilData.moisture >= 40 && soilData.moisture <= 70 
+                        ? 'Good moisture level'
+                        : soilData.moisture < 40 
+                          ? 'Low - irrigation needed'
+                          : 'High - improve drainage'}
                     </div>
                   </div>
 
                   <div>
                     <div className="flex justify-between items-center mb-2">
                       <span className="text-gray-600">{t('soil.organic_matter')}</span>
-                      <span className="font-semibold">{soilData?.organic_matter || '--'}%</span>
+                      <span className="font-semibold">{soilData.organic_matter}%</span>
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-3 mb-2">
                       <div 
                         className={`h-3 rounded-full transition-all duration-300 ${
-                          (soilData?.organic_matter || 0) >= 3 
+                          soilData.organic_matter >= 3 
                             ? 'bg-green-500' 
-                            : (soilData?.organic_matter || 0) >= 2 
+                            : soilData.organic_matter >= 2 
                               ? 'bg-yellow-500' 
                               : 'bg-red-500'
                         }`}
-                        style={{ width: `${Math.min(((soilData?.organic_matter || 0) / 10) * 100, 100)}%` }}
+                        style={{ width: `${Math.min((soilData.organic_matter / 10) * 100, 100)}%` }}
                       ></div>
                     </div>
                     <div className="text-xs text-gray-500">
-                      {(soilData?.organic_matter || 0) >= 3 
-                        ? t('soil.excellent_organic')
-                        : (soilData?.organic_matter || 0) >= 2 
-                          ? t('soil.good_compost')
-                          : t('soil.low_amendments')}
+                      {soilData.organic_matter >= 3 
+                        ? 'Excellent organic content'
+                        : soilData.organic_matter >= 2 
+                          ? 'Good - add compost'
+                          : 'Low - add amendments'}
                     </div>
                   </div>
                 </div>
@@ -1512,15 +1052,15 @@ Provide ONE priority action and ONE monitoring advice. Keep it concise and actio
                         <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
                         {t('soil.nitrogen')}
                       </span>
-                      <span className="font-semibold">{soilData?.nitrogen || '--'}%</span>
+                      <span className="font-semibold">{soilData.nitrogen}%</span>
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-3 mb-2">
                       <div 
                         className="bg-blue-500 h-3 rounded-full transition-all duration-300"
-                        style={{ width: `${Math.min((soilData?.nitrogen || 0), 100)}%` }}
+                        style={{ width: `${Math.min(soilData.nitrogen, 100)}%` }}
                       ></div>
                     </div>
-                    <div className="text-xs text-gray-500">{t('soil.nitrogen_desc')}</div>
+                    <div className="text-xs text-gray-500">Essential for leaf growth</div>
                   </div>
 
                   <div>
@@ -1529,15 +1069,15 @@ Provide ONE priority action and ONE monitoring advice. Keep it concise and actio
                         <div className="w-3 h-3 bg-orange-500 rounded-full"></div>
                         {t('soil.phosphorus')}
                       </span>
-                      <span className="font-semibold">{soilData?.phosphorus || '--'}%</span>
+                      <span className="font-semibold">{soilData.phosphorus}%</span>
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-3 mb-2">
                       <div 
                         className="bg-orange-500 h-3 rounded-full transition-all duration-300"
-                        style={{ width: `${Math.min((soilData?.phosphorus || 0), 100)}%` }}
+                        style={{ width: `${Math.min(soilData.phosphorus, 100)}%` }}
                       ></div>
                     </div>
-                    <div className="text-xs text-gray-500">{t('soil.phosphorus_desc')}</div>
+                    <div className="text-xs text-gray-500">Important for root development</div>
                   </div>
 
                   <div>
@@ -1546,15 +1086,15 @@ Provide ONE priority action and ONE monitoring advice. Keep it concise and actio
                         <div className="w-3 h-3 bg-purple-500 rounded-full"></div>
                         {t('soil.potassium')}
                       </span>
-                      <span className="font-semibold">{soilData?.potassium || '--'}%</span>
+                      <span className="font-semibold">{soilData.potassium}%</span>
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-3 mb-2">
                       <div 
                         className="bg-purple-500 h-3 rounded-full transition-all duration-300"
-                        style={{ width: `${Math.min((soilData?.potassium || 0), 100)}%` }}
+                        style={{ width: `${Math.min(soilData.potassium, 100)}%` }}
                       ></div>
                     </div>
-                    <div className="text-xs text-gray-500">{t('soil.potassium_desc')}</div>
+                    <div className="text-xs text-gray-500">Enhances disease resistance</div>
                   </div>
                 </div>
 
@@ -1563,19 +1103,19 @@ Provide ONE priority action and ONE monitoring advice. Keep it concise and actio
                   <div className="grid grid-cols-2 gap-3 text-sm">
                     <div>
                       <span className="text-gray-600">{t('soil.type')}:</span>
-                      <span className="ml-2 font-semibold">{soilData?.type || '--'}</span>
+                      <span className="ml-2 font-semibold">{soilData.type}</span>
                     </div>
                     <div>
                       <span className="text-gray-600">{t('soil.drainage')}:</span>
-                      <span className="ml-2 font-semibold">{soilData?.drainage || '--'}</span>
+                      <span className="ml-2 font-semibold">{soilData.drainage}</span>
                     </div>
                     <div>
                       <span className="text-gray-600">{t('soil.temperature')}:</span>
-                      <span className="ml-2 font-semibold">{soilData?.temperature || '--'}°C</span>
+                      <span className="ml-2 font-semibold">{soilData.temperature}°C</span>
                     </div>
                     <div>
                       <span className="text-gray-600">{t('soil.salinity')}:</span>
-                      <span className="ml-2 font-semibold">{soilData?.salinity || '--'} dS/m</span>
+                      <span className="ml-2 font-semibold">{soilData.salinity} dS/m</span>
                     </div>
                   </div>
                 </div>
@@ -1592,32 +1132,32 @@ Provide ONE priority action and ONE monitoring advice. Keep it concise and actio
                 <div className="space-y-4">
                   <div className="flex justify-between">
                     <span className="text-gray-600">{t('soil.elevation')}</span>
-                    <span className="font-semibold">{landData?.elevation || '--'} m</span>
+                    <span className="font-semibold">{landData.elevation} m</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">{t('soil.slope')}</span>
-                    <span className="font-semibold">{landData?.slope || '--'}°</span>
+                    <span className="font-semibold">{landData.slope}°</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">{t('soil.aspect')}</span>
-                    <span className="font-semibold">{landData?.aspect || '--'}</span>
+                    <span className="font-semibold">{landData.aspect}</span>
                   </div>
                 </div>
                 
                 <div className="space-y-4">
                   <div className="flex justify-between">
                     <span className="text-gray-600">{t('soil.land_use')}</span>
-                    <span className="font-semibold">{landData?.landUse || '--'}</span>
+                    <span className="font-semibold">{landData.landUse}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">{t('soil.irrigation_access')}</span>
-                    <span className={`font-semibold ${landData?.irrigationAccess ? 'text-green-600' : 'text-red-600'}`}>
-                      {landData?.irrigationAccess ? t('soil.available') : t('soil.not_available')}
+                    <span className={`font-semibold ${landData.irrigationAccess ? 'text-green-600' : 'text-red-600'}`}>
+                      {landData.irrigationAccess ? t('soil.available') : t('soil.not_available')}
                     </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">{t('soil.water_source')}</span>
-                    <span className="font-semibold">{landData?.nearestWaterSource || '--'} km</span>
+                    <span className="font-semibold">{landData.nearestWaterSource} km</span>
                   </div>
                 </div>
                 
@@ -1625,28 +1165,28 @@ Provide ONE priority action and ONE monitoring advice. Keep it concise and actio
                   <div className="flex justify-between">
                     <span className="text-gray-600">Erosion Risk</span>
                     <span className={`font-semibold ${
-                      landData?.soilErosionRisk === 'Low' ? 'text-green-600' : 
-                      landData?.soilErosionRisk === 'Moderate' ? 'text-yellow-600' : 'text-red-600'
+                      landData.soilErosionRisk === 'Low' ? 'text-green-600' : 
+                      landData.soilErosionRisk === 'Moderate' ? 'text-yellow-600' : 'text-red-600'
                     }`}>
-                      {landData?.soilErosionRisk || '--'}
+                      {landData.soilErosionRisk}
                     </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Flood Risk</span>
                     <span className={`font-semibold ${
-                      landData?.floodRisk === 'Low' || landData?.floodRisk === 'Minimal' ? 'text-green-600' : 
-                      landData?.floodRisk === 'Moderate' ? 'text-yellow-600' : 'text-red-600'
+                      landData.floodRisk === 'Low' ? 'text-green-600' : 
+                      landData.floodRisk === 'Moderate' ? 'text-yellow-600' : 'text-red-600'
                     }`}>
-                      {landData?.floodRisk || '--'}
+                      {landData.floodRisk}
                     </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Drought Risk</span>
                     <span className={`font-semibold ${
-                      landData?.droughtRisk === 'Low' ? 'text-green-600' : 
-                      landData?.droughtRisk === 'Moderate' ? 'text-yellow-600' : 'text-red-600'
+                      landData.droughtRisk === 'Low' ? 'text-green-600' : 
+                      landData.droughtRisk === 'Moderate' ? 'text-yellow-600' : 'text-red-600'
                     }`}>
-                      {landData?.droughtRisk || '--'}
+                      {landData.droughtRisk}
                     </span>
                   </div>
                 </div>
@@ -1654,7 +1194,8 @@ Provide ONE priority action and ONE monitoring advice. Keep it concise and actio
             </div>
           </div>
         )}
-
+        
+        {/* AI Advisor Tab */}
         {activeTab === 'ai-advisor' && (
           <div className="space-y-6">
             {/* AI Chat Interface */}
@@ -1696,7 +1237,6 @@ Provide ONE priority action and ONE monitoring advice. Keep it concise and actio
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-3">
                           <h4 className="font-semibold text-gray-800">AI Agricultural Advisor</h4>
-                          
                         </div>
                         <div className="space-y-3 max-h-96 overflow-y-auto">
                           {aiResponse.split('\n').filter(line => line.trim()).map((line, index) => {
@@ -1851,36 +1391,38 @@ Provide ONE priority action and ONE monitoring advice. Keep it concise and actio
                     </div>
                   </div>
                   
-                  <div className="flex items-start gap-3 p-4 bg-blue-50 rounded-xl border border-blue-200">
-                    <Droplets className="w-5 h-5 text-blue-600 mt-0.5" />
-                    <div>
-                      <h4 className="font-semibold text-blue-800">{t('home.soil_moisture')}</h4>
-                      <p className="text-sm text-blue-700 mt-1">
-                        {t('home.moisture_levels_at')} {soilData?.moisture || '--'}% - {
-                          (soilData?.moisture || 0) < 40 ? t('home.irrigation_recommended') : t('home.adequate_for_now')
-                        }.
-                      </p>
+                  {soilData && soilData.moisture < 40 && (
+                    <div className="flex items-start gap-3 p-4 bg-orange-50 rounded-xl border border-orange-200">
+                      <AlertTriangle className="w-5 h-5 text-orange-600 mt-0.5" />
+                      <div>
+                        <h4 className="font-semibold text-orange-800">Irrigation Needed</h4>
+                        <p className="text-sm text-orange-700 mt-1">
+                          Soil moisture is at {soilData.moisture}%. Consider watering soon.
+                        </p>
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </div>
                 
                 <div className="space-y-4">
-                  <div className="flex items-start gap-3 p-4 bg-yellow-50 rounded-xl border border-yellow-200">
-                    <AlertTriangle className="w-5 h-5 text-yellow-600 mt-0.5" />
-                    <div>
-                      <h4 className="font-semibold text-yellow-800">{t('home.monitor_alert')}</h4>
-                      <p className="text-sm text-yellow-700 mt-1">
-                        {t('home.keep_eye_on')} {crop} {t('home.stress_due_weather')}.
-                      </p>
+                  {soilData && (soilData.ph < 6.0 || soilData.ph > 7.5) && (
+                    <div className="flex items-start gap-3 p-4 bg-yellow-50 rounded-xl border border-yellow-200">
+                      <AlertTriangle className="w-5 h-5 text-yellow-600 mt-0.5" />
+                      <div>
+                        <h4 className="font-semibold text-yellow-800">pH Adjustment Needed</h4>
+                        <p className="text-sm text-yellow-700 mt-1">
+                          Current pH: {soilData.ph}. Consider {soilData.ph < 6.0 ? 'liming' : 'sulfur application'}.
+                        </p>
+                      </div>
                     </div>
-                  </div>
+                  )}
                   
-                  <div className="flex items-start gap-3 p-4 bg-purple-50 rounded-xl border border-purple-200">
-                    <TrendingUp className="w-5 h-5 text-purple-600 mt-0.5" />
+                  <div className="flex items-start gap-3 p-4 bg-blue-50 rounded-xl border border-blue-200">
+                    <TrendingUp className="w-5 h-5 text-blue-600 mt-0.5" />
                     <div>
-                      <h4 className="font-semibold text-purple-800">{t('home.growth_forecast')}</h4>
-                      <p className="text-sm text-purple-700 mt-1">
-                        {t('home.conditions_trending')} {crop} {t('home.development_next_days')}.
+                      <h4 className="font-semibold text-blue-800">Growing Conditions</h4>
+                      <p className="text-sm text-blue-700 mt-1">
+                        {crop} cultivation looking good at {location.city} elevation.
                       </p>
                     </div>
                   </div>
@@ -1889,19 +1431,9 @@ Provide ONE priority action and ONE monitoring advice. Keep it concise and actio
             </div>
           </div>
         )}
-
-        {/* Footer */}
-        <div className="text-center text-gray-500 text-sm border-t border-gray-200 pt-6">
-          <p>{t('home.footer_dashboard')}</p>
-          <p className="mt-1">
-            {t('home.location_label')}: {weatherData ? `${weatherData.location.city}, ${weatherData.location.country}` : t('common.loading')} | 
-            {t('home.last_updated_label')}: {new Date().toLocaleString()}
-          </p>
-        </div>
       </div>
     </div>
   );
 }
 
-export default Home;
-export { Home };
+export default Dashboard;
