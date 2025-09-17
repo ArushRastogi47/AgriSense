@@ -55,6 +55,14 @@ type WeatherData = {
     cloud_cover: number;
     description: string;
   };
+  hourly: Array<{
+    time: string;
+    temperature_c: number;
+    humidity: number;
+    precip_probability: number;
+    wind_speed_kmh: number;
+    description: string;
+  }>;
   daily: Array<{
     date: string;
     temp_max_c: number;
@@ -181,31 +189,6 @@ const getCurrentLocation = (): Promise<LocationData> => {
   });
 };
 
-// Fallback weather data
-const getFallbackWeatherData = (lat: number, lon: number, city: string = 'Unknown Location', country: string = 'Unknown'): WeatherData => {
-  return {
-    location: { latitude: lat, longitude: lon, city, country },
-    current: {
-      temperature_c: 25,
-      relative_humidity: 65,
-      precipitation_probability: 20,
-      wind_speed_kmh: 12,
-      wind_direction: 'NE',
-      visibility_km: 10,
-      uv_index: 6,
-      feels_like_c: 27,
-      pressure_mb: 1013,
-      cloud_cover: 40,
-      description: 'partly cloudy'
-    },
-    daily: [
-      { date: new Date().toISOString().split('T')[0], temp_max_c: 28, temp_min_c: 22, precip_probability_max: 20, wind_speed_kmh: 12, humidity: 65, description: 'partly cloudy' },
-      { date: new Date(Date.now() + 86400000).toISOString().split('T')[0], temp_max_c: 30, temp_min_c: 24, precip_probability_max: 10, wind_speed_kmh: 15, humidity: 60, description: 'sunny' },
-      { date: new Date(Date.now() + 172800000).toISOString().split('T')[0], temp_max_c: 26, temp_min_c: 20, precip_probability_max: 60, wind_speed_kmh: 18, humidity: 75, description: 'light rain' }
-    ]
-  };
-};
-
 // Fetch weather data using OpenWeatherMap API
 const fetchWeatherData = async (lat: number, lon: number): Promise<WeatherData> => {
   try {
@@ -228,24 +211,64 @@ const fetchWeatherData = async (lat: number, lon: number): Promise<WeatherData> 
 
     console.log('Weather data fetched successfully:', currentData.name);
 
-    // Process forecast data to get daily summaries
-    const dailyForecasts: WeatherData['daily'] = [];
-    const processedDates = new Set<string>();
+    // Process hourly forecast for today (next 8 hours)
+    const hourlyForecasts: WeatherData['hourly'] = [];
+    const now = new Date();
     
-    forecastData.list.forEach((item: any) => {
-      const date = new Date(item.dt * 1000).toISOString().split('T')[0];
-      if (!processedDates.has(date) && dailyForecasts.length < 7) {
-        processedDates.add(date);
-        dailyForecasts.push({
-          date,
-          temp_max_c: Math.round(item.main.temp_max),
-          temp_min_c: Math.round(item.main.temp_min),
-          precip_probability_max: item.pop * 100,
-          wind_speed_kmh: Math.round(item.wind.speed * 3.6),
+    forecastData.list.slice(0, 8).forEach((item: any) => {
+      const itemTime = new Date(item.dt * 1000);
+      if (itemTime > now) {
+        hourlyForecasts.push({
+          time: itemTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          temperature_c: Math.round(item.main.temp),
           humidity: item.main.humidity,
+          precip_probability: Math.round(item.pop * 100),
+          wind_speed_kmh: Math.round(item.wind.speed * 3.6),
           description: item.weather[0].description
         });
       }
+    });
+
+    // Process forecast data to get daily summaries (6 days excluding today)
+    const dailyForecasts: WeatherData['daily'] = [];
+    const processedDates = new Set<string>();
+    const today = new Date().toISOString().split('T')[0];
+    const dailyData: { [key: string]: any[] } = {};
+    
+    // Group forecast data by date
+    forecastData.list.forEach((item: any) => {
+      const date = new Date(item.dt * 1000).toISOString().split('T')[0];
+      if (date !== today) {
+        if (!dailyData[date]) {
+          dailyData[date] = [];
+        }
+        dailyData[date].push(item);
+      }
+    });
+
+    // Process each day's data to create daily forecast (limit to 6 days)
+    Object.keys(dailyData).slice(0, 6).forEach((date) => {
+      const dayData = dailyData[date];
+      const temps = dayData.map(item => item.main.temp);
+      const humidity = dayData.map(item => item.main.humidity);
+      const precipitation = dayData.map(item => item.pop || 0);
+      const windSpeeds = dayData.map(item => item.wind.speed * 3.6);
+      
+      // Get the most frequent weather description for the day
+      const descriptions = dayData.map(item => item.weather[0].description);
+      const mostFrequentDescription = descriptions.sort((a, b) =>
+        descriptions.filter(v => v === a).length - descriptions.filter(v => v === b).length
+      ).pop();
+
+      dailyForecasts.push({
+        date,
+        temp_max_c: Math.round(Math.max(...temps)),
+        temp_min_c: Math.round(Math.min(...temps)),
+        precip_probability_max: Math.round(Math.max(...precipitation) * 100),
+        wind_speed_kmh: Math.round(windSpeeds.reduce((a, b) => a + b, 0) / windSpeeds.length),
+        humidity: Math.round(humidity.reduce((a, b) => a + b, 0) / humidity.length),
+        description: mostFrequentDescription || 'clear'
+      });
     });
 
     return {
@@ -268,12 +291,64 @@ const fetchWeatherData = async (lat: number, lon: number): Promise<WeatherData> 
         cloud_cover: currentData.clouds.all,
         description: currentData.weather[0].description
       },
+      hourly: hourlyForecasts,
       daily: dailyForecasts
     };
   } catch (error) {
     console.warn('Weather API error, using fallback data:', error);
     return getFallbackWeatherData(lat, lon);
   }
+};
+
+// Fallback weather data
+const getFallbackWeatherData = (lat: number, lon: number, city: string = 'Unknown Location', country: string = 'Unknown'): WeatherData => {
+  const tomorrow = new Date(Date.now() + 86400000).toISOString().split('T')[0];
+  const dayAfter = new Date(Date.now() + 172800000).toISOString().split('T')[0];
+  const day3 = new Date(Date.now() + 259200000).toISOString().split('T')[0];
+  const day4 = new Date(Date.now() + 345600000).toISOString().split('T')[0];
+  const day5 = new Date(Date.now() + 432000000).toISOString().split('T')[0];
+  const day6 = new Date(Date.now() + 518400000).toISOString().split('T')[0];
+
+  // Generate hourly forecast for today (next 8 hours)
+  const hourlyForecasts = [];
+  for (let i = 1; i <= 8; i++) {
+    const futureTime = new Date(Date.now() + i * 3600000); // Each hour
+    const temp = 25 + Math.sin(i * 0.5) * 3; // Varying temperatures
+    hourlyForecasts.push({
+      time: futureTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      temperature_c: Math.round(temp),
+      humidity: 65 + Math.cos(i * 0.3) * 10,
+      precip_probability: Math.max(0, 20 - i * 2),
+      wind_speed_kmh: 12 + Math.sin(i * 0.4) * 5,
+      description: i % 3 === 0 ? 'cloudy' : i % 2 === 0 ? 'partly cloudy' : 'clear'
+    });
+  }
+
+  return {
+    location: { latitude: lat, longitude: lon, city, country },
+    current: {
+      temperature_c: 25,
+      relative_humidity: 65,
+      precipitation_probability: 20,
+      wind_speed_kmh: 12,
+      wind_direction: 'NE',
+      visibility_km: 10,
+      uv_index: 6,
+      feels_like_c: 27,
+      pressure_mb: 1013,
+      cloud_cover: 40,
+      description: 'partly cloudy'
+    },
+    hourly: hourlyForecasts,
+    daily: [
+      { date: tomorrow, temp_max_c: 28, temp_min_c: 22, precip_probability_max: 20, wind_speed_kmh: 12, humidity: 65, description: 'partly cloudy' },
+      { date: dayAfter, temp_max_c: 30, temp_min_c: 24, precip_probability_max: 10, wind_speed_kmh: 15, humidity: 60, description: 'sunny' },
+      { date: day3, temp_max_c: 26, temp_min_c: 20, precip_probability_max: 60, wind_speed_kmh: 18, humidity: 75, description: 'light rain' },
+      { date: day4, temp_max_c: 29, temp_min_c: 23, precip_probability_max: 15, wind_speed_kmh: 14, humidity: 62, description: 'clear' },
+      { date: day5, temp_max_c: 31, temp_min_c: 25, precip_probability_max: 5, wind_speed_kmh: 10, humidity: 58, description: 'sunny' },
+      { date: day6, temp_max_c: 27, temp_min_c: 21, precip_probability_max: 40, wind_speed_kmh: 16, humidity: 70, description: 'cloudy' }
+    ]
+  };
 };
 
 // Convert wind degree to direction
@@ -1079,15 +1154,15 @@ Provide ONE priority action and ONE monitoring advice. Keep it concise and actio
                     <ThermometerSun className="w-5 h-5 text-orange-600" />
                   </div>
                   <div>
-                    <h4 className="font-semibold text-gray-800">Temperature</h4>
-                    <p className="text-xs text-gray-500">Current conditions</p>
+                    <h4 className="font-semibold text-gray-800">{t('home.temperature')}</h4>
+                    <p className="text-xs text-gray-500">{t('weather.current_conditions')}</p>
                   </div>
                 </div>
                 <div className="text-2xl font-bold text-gray-800 mb-1">
                   {weatherData?.current.temperature_c || '--'}°C
                 </div>
                 <p className="text-sm text-gray-600">
-                  Feels like {weatherData?.current.feels_like_c || '--'}°C
+                  {t('home.feels_like')} {weatherData?.current.feels_like_c || '--'}°C
                 </p>
               </div>
 
@@ -1097,8 +1172,8 @@ Provide ONE priority action and ONE monitoring advice. Keep it concise and actio
                     <Droplets className="w-5 h-5 text-blue-600" />
                   </div>
                   <div>
-                    <h4 className="font-semibold text-gray-800">Humidity</h4>
-                    <p className="text-xs text-gray-500">Relative humidity</p>
+                    <h4 className="font-semibold text-gray-800">{t('home.humidity')}</h4>
+                    <p className="text-xs text-gray-500">{t('weather.relative_humidity')}</p>
                   </div>
                 </div>
                 <div className="text-2xl font-bold text-gray-800 mb-1">
@@ -1118,8 +1193,8 @@ Provide ONE priority action and ONE monitoring advice. Keep it concise and actio
                     <Wind className="w-5 h-5 text-gray-600" />
                   </div>
                   <div>
-                    <h4 className="font-semibold text-gray-800">Wind</h4>
-                    <p className="text-xs text-gray-500">Speed & direction</p>
+                    <h4 className="font-semibold text-gray-800">{t('weather.wind')}</h4>
+                    <p className="text-xs text-gray-500">{t('weather.speed_direction')}</p>
                   </div>
                 </div>
                 <div className="text-2xl font-bold text-gray-800 mb-1">
@@ -1137,8 +1212,8 @@ Provide ONE priority action and ONE monitoring advice. Keep it concise and actio
                     <Activity className="w-5 h-5 text-purple-600" />
                   </div>
                   <div>
-                    <h4 className="font-semibold text-gray-800">Pressure</h4>
-                    <p className="text-xs text-gray-500">Atmospheric pressure</p>
+                    <h4 className="font-semibold text-gray-800">{t('home.pressure')}</h4>
+                    <p className="text-xs text-gray-500">{t('weather.atmospheric_pressure')}</p>
                   </div>
                 </div>
                 <div className="text-2xl font-bold text-gray-800 mb-1">
@@ -1148,39 +1223,181 @@ Provide ONE priority action and ONE monitoring advice. Keep it concise and actio
               </div>
             </div>
 
-            {/* 7-Day Forecast */}
+            {/* Hourly Forecast */}
+            <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
+              <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
+                <Clock className="w-6 h-6 text-green-600" />
+                {t('weather.hourly_forecast')}
+              </h3>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-8 gap-4">
+                {(weatherData?.hourly || []).map((hour, index) => {
+                  const translateWeatherDescription = (description: string) => {
+                    const normalizedDesc = description.toLowerCase().trim();
+                    const weatherTranslationMap = {
+                      'clear sky': 'weather.clear',
+                      'few clouds': 'weather.partly_cloudy',
+                      'scattered clouds': 'weather.partly_cloudy',
+                      'broken clouds': 'weather.cloudy',
+                      'overcast clouds': 'weather.overcast',
+                      'overcast': 'weather.overcast',
+                      'light rain': 'weather.light_rain',
+                      'moderate rain': 'weather.light_rain',
+                      'heavy intensity rain': 'weather.heavy_rain',
+                      'heavy rain': 'weather.heavy_rain',
+                      'partly cloudy': 'weather.partly_cloudy',
+                      'cloudy': 'weather.cloudy',
+                      'sunny': 'weather.sunny',
+                      'clear': 'weather.clear'
+                    };
+                    
+                    if (weatherTranslationMap[normalizedDesc]) {
+                      return t(weatherTranslationMap[normalizedDesc]);
+                    }
+                    
+                    // Check for partial matches
+                    if (normalizedDesc.includes('rain')) {
+                      return t('weather.light_rain');
+                    }
+                    if (normalizedDesc.includes('cloud')) {
+                      if (normalizedDesc.includes('few') || normalizedDesc.includes('scattered')) {
+                        return t('weather.partly_cloudy');
+                      } else {
+                        return t('weather.cloudy');
+                      }
+                    }
+                    if (normalizedDesc.includes('clear') || normalizedDesc.includes('sunny')) {
+                      return t('weather.clear');
+                    }
+                    
+                    return description;
+                  };
+                  
+                  return (
+                    <div key={index} className="bg-gradient-to-br from-green-50 to-blue-50 rounded-xl p-3 border border-gray-100 text-center">
+                      <div className="text-xs font-medium text-gray-600 mb-2">
+                        {hour.time}
+                      </div>
+                      <div className="text-lg font-bold text-gray-800 mb-1">
+                        {Math.round(hour.temperature_c)}°
+                      </div>
+                      <div className="text-xs text-gray-600 mb-2">
+                        {translateWeatherDescription(hour.description)}
+                      </div>
+                      <div className="flex items-center justify-center gap-1 text-xs text-blue-600 mb-1">
+                        <Droplets className="w-3 h-3" />
+                        {Math.round(hour.precip_probability)}%
+                      </div>
+                      <div className="flex items-center justify-center gap-1 text-xs text-gray-500">
+                        <Wind className="w-3 h-3" />
+                        {Math.round(hour.wind_speed_kmh)} km/h
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* 6-Day Forecast */}
             <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
               <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
                 <TrendingUp className="w-6 h-6 text-blue-600" />
-                7-Day Weather Forecast
+                {t('weather.forecast_6_day')}
               </h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-4">
-                {(weatherData?.daily || []).map((day, index) => (
-                  <div key={day.date} className="bg-gradient-to-br from-blue-50 to-green-50 rounded-xl p-4 border border-gray-100">
-                    <div className="text-center">
-                      <div className="text-xs font-medium text-gray-600 mb-2">
-                        {index === 0 ? 'Today' : new Date(day.date).toLocaleDateString('en-US', { weekday: 'short' })}
-                      </div>
-                      <div className="text-sm font-semibold text-gray-800 mb-2 capitalize">
-                        {day.description}
-                      </div>
-                      <div className="text-lg font-bold text-gray-800 mb-1">
-                        {Math.round(day.temp_max_c)}°
-                      </div>
-                      <div className="text-sm text-gray-600 mb-2">
-                        {Math.round(day.temp_min_c)}°
-                      </div>
-                      <div className="flex items-center justify-center gap-1 text-xs text-blue-600">
-                        <Droplets className="w-3 h-3" />
-                        {Math.round(day.precip_probability_max)}%
-                      </div>
-                      <div className="flex items-center justify-center gap-1 text-xs text-gray-500 mt-1">
-                        <Wind className="w-3 h-3" />
-                        {Math.round(day.wind_speed_kmh)} km/h
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+                {(weatherData?.daily || []).map((day, index) => {
+                  const dayDate = new Date(day.date);
+                  const dayName = dayDate.toLocaleDateString(language === 'ml' ? 'ml-IN' : 'en-US', { weekday: 'short' });
+                  
+                  // Function to translate weather description (same as hourly)
+                  const translateWeatherDescription = (description: string) => {
+                    const normalizedDesc = description.toLowerCase().trim();
+                    const weatherTranslationMap = {
+                      'clear sky': 'weather.clear',
+                      'few clouds': 'weather.partly_cloudy',
+                      'scattered clouds': 'weather.partly_cloudy',
+                      'broken clouds': 'weather.cloudy',
+                      'overcast clouds': 'weather.overcast',
+                      'overcast': 'weather.overcast',
+                      'light rain': 'weather.light_rain',
+                      'moderate rain': 'weather.light_rain',
+                      'heavy intensity rain': 'weather.heavy_rain',
+                      'heavy rain': 'weather.heavy_rain',
+                      'thunderstorm': 'weather.thunderstorm',
+                      'mist': 'weather.mist',
+                      'fog': 'weather.fog',
+                      'partly cloudy': 'weather.partly_cloudy',
+                      'cloudy': 'weather.cloudy',
+                      'sunny': 'weather.sunny',
+                      'clear': 'weather.clear'
+                    };
+                    
+                    if (weatherTranslationMap[normalizedDesc]) {
+                      return t(weatherTranslationMap[normalizedDesc]);
+                    }
+                    
+                    // Check for partial matches
+                    if (normalizedDesc.includes('rain')) {
+                      if (normalizedDesc.includes('light') || normalizedDesc.includes('drizzle')) {
+                        return t('weather.light_rain');
+                      } else if (normalizedDesc.includes('heavy')) {
+                        return t('weather.heavy_rain');
+                      } else {
+                        return t('weather.rainy');
+                      }
+                    }
+                    if (normalizedDesc.includes('cloud')) {
+                      if (normalizedDesc.includes('few') || normalizedDesc.includes('scattered')) {
+                        return t('weather.partly_cloudy');
+                      } else if (normalizedDesc.includes('overcast') || normalizedDesc.includes('broken')) {
+                        return t('weather.overcast');
+                      } else {
+                        return t('weather.cloudy');
+                      }
+                    }
+                    if (normalizedDesc.includes('clear') || normalizedDesc.includes('sunny')) {
+                      return t('weather.clear');
+                    }
+                    if (normalizedDesc.includes('thunder')) {
+                      return t('weather.thunderstorm');
+                    }
+                    if (normalizedDesc.includes('mist')) {
+                      return t('weather.mist');
+                    }
+                    if (normalizedDesc.includes('fog')) {
+                      return t('weather.fog');
+                    }
+                    
+                    // Return original description if no translation found
+                    return description.charAt(0).toUpperCase() + description.slice(1);
+                  };
+                  
+                  return (
+                    <div key={day.date} className="bg-gradient-to-br from-blue-50 to-green-50 rounded-xl p-4 border border-gray-100">
+                      <div className="text-center">
+                        <div className="text-xs font-medium text-gray-600 mb-2">
+                          {dayName}
+                        </div>
+                        <div className="text-sm font-semibold text-gray-800 mb-2">
+                          {translateWeatherDescription(day.description)}
+                        </div>
+                        <div className="text-lg font-bold text-gray-800 mb-1">
+                          {Math.round(day.temp_max_c)}°
+                        </div>
+                        <div className="text-sm text-gray-600 mb-2">
+                          {Math.round(day.temp_min_c)}°
+                        </div>
+                        <div className="flex items-center justify-center gap-1 text-xs text-blue-600">
+                          <Droplets className="w-3 h-3" />
+                          {Math.round(day.precip_probability_max)}%
+                        </div>
+                        <div className="flex items-center justify-center gap-1 text-xs text-gray-500 mt-1">
+                          <Wind className="w-3 h-3" />
+                          {Math.round(day.wind_speed_kmh)} km/h
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           </div>
@@ -1193,12 +1410,12 @@ Provide ONE priority action and ONE monitoring advice. Keep it concise and actio
               <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
                 <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
                   <Mountain className="w-6 h-6 text-amber-600" />
-                  Soil Composition
+                  {t('soil.composition')}
                 </h3>
                 <div className="space-y-6">
                   <div>
                     <div className="flex justify-between items-center mb-2">
-                      <span className="text-gray-600">pH Level</span>
+                      <span className="text-gray-600">{t('soil.ph_level')}</span>
                       <span className="font-semibold">{soilData?.ph || '--'}</span>
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-3 mb-2">
@@ -1215,16 +1432,16 @@ Provide ONE priority action and ONE monitoring advice. Keep it concise and actio
                     </div>
                     <div className="text-xs text-gray-500">
                       {(soilData?.ph || 0) >= 6.0 && (soilData?.ph || 0) <= 7.5 
-                        ? 'Optimal range for most crops' 
+                        ? t('soil.optimal_range')
                         : (soilData?.ph || 0) < 6.0 
-                          ? 'Acidic - may need liming' 
-                          : 'Alkaline - may need sulfur'}
+                          ? t('soil.acidic_liming')
+                          : t('soil.alkaline_sulfur')}
                     </div>
                   </div>
 
                   <div>
                     <div className="flex justify-between items-center mb-2">
-                      <span className="text-gray-600">Moisture Content</span>
+                      <span className="text-gray-600">{t('soil.moisture_content')}</span>
                       <span className="font-semibold">{soilData?.moisture || '--'}%</span>
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-3 mb-2">
@@ -1241,16 +1458,16 @@ Provide ONE priority action and ONE monitoring advice. Keep it concise and actio
                     </div>
                     <div className="text-xs text-gray-500">
                       {(soilData?.moisture || 0) >= 40 && (soilData?.moisture || 0) <= 70 
-                        ? 'Good moisture level' 
+                        ? t('soil.good_moisture')
                         : (soilData?.moisture || 0) < 40 
-                          ? 'Low - irrigation needed' 
-                          : 'High - check drainage'}
+                          ? t('soil.low_irrigation')
+                          : t('soil.high_drainage')}
                     </div>
                   </div>
 
                   <div>
                     <div className="flex justify-between items-center mb-2">
-                      <span className="text-gray-600">Organic Matter</span>
+                      <span className="text-gray-600">{t('soil.organic_matter')}</span>
                       <span className="font-semibold">{soilData?.organic_matter || '--'}%</span>
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-3 mb-2">
@@ -1267,10 +1484,10 @@ Provide ONE priority action and ONE monitoring advice. Keep it concise and actio
                     </div>
                     <div className="text-xs text-gray-500">
                       {(soilData?.organic_matter || 0) >= 3 
-                        ? 'Excellent organic content' 
+                        ? t('soil.excellent_organic')
                         : (soilData?.organic_matter || 0) >= 2 
-                          ? 'Good - consider compost' 
-                          : 'Low - needs organic amendments'}
+                          ? t('soil.good_compost')
+                          : t('soil.low_amendments')}
                     </div>
                   </div>
                 </div>
@@ -1279,14 +1496,14 @@ Provide ONE priority action and ONE monitoring advice. Keep it concise and actio
               <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
                 <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
                   <Zap className="w-6 h-6 text-yellow-600" />
-                  Nutrient Levels (NPK)
+                  {t('soil.nutrient_levels')}
                 </h3>
                 <div className="space-y-6">
                   <div>
                     <div className="flex justify-between items-center mb-2">
                       <span className="text-gray-600 flex items-center gap-2">
                         <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
-                        Nitrogen (N)
+                        {t('soil.nitrogen')}
                       </span>
                       <span className="font-semibold">{soilData?.nitrogen || '--'}%</span>
                     </div>
@@ -1296,14 +1513,14 @@ Provide ONE priority action and ONE monitoring advice. Keep it concise and actio
                         style={{ width: `${Math.min((soilData?.nitrogen || 0), 100)}%` }}
                       ></div>
                     </div>
-                    <div className="text-xs text-gray-500">Essential for leaf growth and chlorophyll</div>
+                    <div className="text-xs text-gray-500">{t('soil.nitrogen_desc')}</div>
                   </div>
 
                   <div>
                     <div className="flex justify-between items-center mb-2">
                       <span className="text-gray-600 flex items-center gap-2">
                         <div className="w-3 h-3 bg-orange-500 rounded-full"></div>
-                        Phosphorus (P)
+                        {t('soil.phosphorus')}
                       </span>
                       <span className="font-semibold">{soilData?.phosphorus || '--'}%</span>
                     </div>
@@ -1313,14 +1530,14 @@ Provide ONE priority action and ONE monitoring advice. Keep it concise and actio
                         style={{ width: `${Math.min((soilData?.phosphorus || 0), 100)}%` }}
                       ></div>
                     </div>
-                    <div className="text-xs text-gray-500">Important for root development and flowering</div>
+                    <div className="text-xs text-gray-500">{t('soil.phosphorus_desc')}</div>
                   </div>
 
                   <div>
                     <div className="flex justify-between items-center mb-2">
                       <span className="text-gray-600 flex items-center gap-2">
                         <div className="w-3 h-3 bg-purple-500 rounded-full"></div>
-                        Potassium (K)
+                        {t('soil.potassium')}
                       </span>
                       <span className="font-semibold">{soilData?.potassium || '--'}%</span>
                     </div>
@@ -1330,27 +1547,27 @@ Provide ONE priority action and ONE monitoring advice. Keep it concise and actio
                         style={{ width: `${Math.min((soilData?.potassium || 0), 100)}%` }}
                       ></div>
                     </div>
-                    <div className="text-xs text-gray-500">Enhances disease resistance and fruit quality</div>
+                    <div className="text-xs text-gray-500">{t('soil.potassium_desc')}</div>
                   </div>
                 </div>
 
                 <div className="mt-6 p-4 bg-gradient-to-r from-green-50 to-blue-50 rounded-xl border border-green-200">
-                  <h4 className="font-semibold text-gray-800 mb-2">Soil Characteristics</h4>
+                  <h4 className="font-semibold text-gray-800 mb-2">{t('soil.characteristics')}</h4>
                   <div className="grid grid-cols-2 gap-3 text-sm">
                     <div>
-                      <span className="text-gray-600">Type:</span>
+                      <span className="text-gray-600">{t('soil.type')}:</span>
                       <span className="ml-2 font-semibold">{soilData?.type || '--'}</span>
                     </div>
                     <div>
-                      <span className="text-gray-600">Drainage:</span>
+                      <span className="text-gray-600">{t('soil.drainage')}:</span>
                       <span className="ml-2 font-semibold">{soilData?.drainage || '--'}</span>
                     </div>
                     <div>
-                      <span className="text-gray-600">Temperature:</span>
+                      <span className="text-gray-600">{t('soil.temperature')}:</span>
                       <span className="ml-2 font-semibold">{soilData?.temperature || '--'}°C</span>
                     </div>
                     <div>
-                      <span className="text-gray-600">Salinity:</span>
+                      <span className="text-gray-600">{t('soil.salinity')}:</span>
                       <span className="ml-2 font-semibold">{soilData?.salinity || '--'} dS/m</span>
                     </div>
                   </div>
@@ -1362,37 +1579,37 @@ Provide ONE priority action and ONE monitoring advice. Keep it concise and actio
             <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
               <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
                 <MapPin className="w-6 h-6 text-green-600" />
-                Land Information
+                {t('soil.land_information')}
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <div className="space-y-4">
                   <div className="flex justify-between">
-                    <span className="text-gray-600">Elevation</span>
+                    <span className="text-gray-600">{t('soil.elevation')}</span>
                     <span className="font-semibold">{landData?.elevation || '--'} m</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-600">Slope</span>
+                    <span className="text-gray-600">{t('soil.slope')}</span>
                     <span className="font-semibold">{landData?.slope || '--'}°</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-600">Aspect</span>
+                    <span className="text-gray-600">{t('soil.aspect')}</span>
                     <span className="font-semibold">{landData?.aspect || '--'}</span>
                   </div>
                 </div>
                 
                 <div className="space-y-4">
                   <div className="flex justify-between">
-                    <span className="text-gray-600">Land Use</span>
+                    <span className="text-gray-600">{t('soil.land_use')}</span>
                     <span className="font-semibold">{landData?.landUse || '--'}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-600">Irrigation Access</span>
+                    <span className="text-gray-600">{t('soil.irrigation_access')}</span>
                     <span className={`font-semibold ${landData?.irrigationAccess ? 'text-green-600' : 'text-red-600'}`}>
-                      {landData?.irrigationAccess ? 'Available' : 'Not Available'}
+                      {landData?.irrigationAccess ? t('soil.available') : t('soil.not_available')}
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-600">Water Source</span>
+                    <span className="text-gray-600">{t('soil.water_source')}</span>
                     <span className="font-semibold">{landData?.nearestWaterSource || '--'} km</span>
                   </div>
                 </div>

@@ -65,7 +65,8 @@ export const Chat = () => {
     socket.emit('user_message', {
       roomId,
       text,
-      userId: 'user-' + Math.random().toString(36).slice(2)
+      userId: 'user-' + Math.random().toString(36).slice(2),
+      language
     });
   }
 
@@ -84,7 +85,8 @@ export const Chat = () => {
       roomId,
       imageData,
       fileName,
-      userId: 'user-' + Math.random().toString(36).slice(2)
+      userId: 'user-' + Math.random().toString(36).slice(2),
+      language
     });
     
     // Reset upload state after a delay

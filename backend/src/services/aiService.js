@@ -5,6 +5,30 @@ const { GoogleGenerativeAI } = require('@google/generative-ai');
 const dotenv = require('dotenv');
 dotenv.config();
 
+// Malayalam language detection and translation utilities
+function isMalayalam(text = '') {
+  return /[\u0D00-\u0D7F]/.test(text);
+}
+
+async function translateToMalayalam(text) {
+  if (!model) return text;
+  
+  try {
+    const prompt = `Translate the following text to Malayalam. Only provide the Malayalam translation, no explanations or additional text:
+
+"${text}"`;
+    
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const translatedText = response.text().trim();
+    
+    return translatedText || text;
+  } catch (error) {
+    console.error('❌ Translation to Malayalam failed:', error);
+    return text;
+  }
+}
+
 // Initialize Gemini AI with your API key
 let genAI = null;
 let model = null;
@@ -103,46 +127,55 @@ Provide helpful agricultural guidance:`;
   }
 }
 
-function getFallbackResponse(text) {
+async function getFallbackResponse(text, language = 'en') {
   const lowerText = text.toLowerCase();
+  let response = '';
   
   // Weather-related queries
   if (lowerText.includes('weather') || lowerText.includes('rain') || lowerText.includes('climate')) {
-    return "🌤️ Monitor weather patterns regularly using reliable apps or IMD forecasts. Plan sowing and harvesting based on monsoon predictions. Ensure proper drainage during heavy rains and irrigation during dry spells.";
+    response = "🌤️ Monitor weather patterns regularly using reliable apps or IMD forecasts. Plan sowing and harvesting based on monsoon predictions. Ensure proper drainage during heavy rains and irrigation during dry spells.";
   }
-  
   // Kerala-specific crops
-  if (lowerText.includes('kerala') || lowerText.includes('coconut') || lowerText.includes('pepper') || lowerText.includes('cardamom')) {
-    return "🌴 Kerala's tropical climate is ideal for coconut, pepper, cardamom, rubber, and spices. Focus on organic farming, proper spacing, and intercropping. Consult local KVK for variety-specific guidance.";
+  else if (lowerText.includes('kerala') || lowerText.includes('coconut') || lowerText.includes('pepper') || lowerText.includes('cardamom')) {
+    response = "🌴 Kerala's tropical climate is ideal for coconut, pepper, cardamom, rubber, and spices. Focus on organic farming, proper spacing, and intercropping. Consult local KVK for variety-specific guidance.";
   }
-  
   // Crop and planting queries
-  if (lowerText.includes('crop') || lowerText.includes('plant') || lowerText.includes('seed') || lowerText.includes('sow')) {
-    return "🌱 Choose crops based on your soil type, climate, and market demand. Ensure good quality seeds, proper spacing, and timely sowing. Consider crop rotation for soil health. Contact your local agricultural officer for region-specific varieties.";
+  else if (lowerText.includes('crop') || lowerText.includes('plant') || lowerText.includes('seed') || lowerText.includes('sow')) {
+    response = "🌱 Choose crops based on your soil type, climate, and market demand. Ensure good quality seeds, proper spacing, and timely sowing. Consider crop rotation for soil health. Contact your local agricultural officer for region-specific varieties.";
   }
-  
   // Pest and disease queries
-  if (lowerText.includes('pest') || lowerText.includes('disease') || lowerText.includes('insect') || lowerText.includes('fungus')) {
-    return "🐛 Early identification is key for pest management. Use integrated pest management (IPM) combining biological, cultural, and chemical methods. Neem-based solutions are effective for many pests. Consult agricultural experts for severe infestations.";
+  else if (lowerText.includes('pest') || lowerText.includes('disease') || lowerText.includes('insect') || lowerText.includes('fungus')) {
+    response = "🐛 Early identification is key for pest management. Use integrated pest management (IPM) combining biological, cultural, and chemical methods. Neem-based solutions are effective for many pests. Consult agricultural experts for severe infestations.";
   }
-  
   // Soil-related queries
-  if (lowerText.includes('soil') || lowerText.includes('fertilizer') || lowerText.includes('nutrient')) {
-    return "🌾 Regular soil testing helps determine nutrient needs. Use organic compost and balanced fertilizers. Maintain soil pH between 6.0-7.5 for most crops. Add organic matter to improve soil structure and water retention.";
+  else if (lowerText.includes('soil') || lowerText.includes('fertilizer') || lowerText.includes('nutrient')) {
+    response = "🌾 Regular soil testing helps determine nutrient needs. Use organic compost and balanced fertilizers. Maintain soil pH between 6.0-7.5 for most crops. Add organic matter to improve soil structure and water retention.";
   }
-  
   // Water and irrigation
-  if (lowerText.includes('water') || lowerText.includes('irrigation') || lowerText.includes('drip')) {
-    return "💧 Efficient water management is crucial. Consider drip irrigation for water conservation. Water early morning or evening to reduce evaporation. Monitor soil moisture and adjust irrigation based on crop stage and weather.";
+  else if (lowerText.includes('water') || lowerText.includes('irrigation') || lowerText.includes('drip')) {
+    response = "💧 Efficient water management is crucial. Consider drip irrigation for water conservation. Water early morning or evening to reduce evaporation. Monitor soil moisture and adjust irrigation based on crop stage and weather.";
   }
-  
   // Marketing and price queries
-  if (lowerText.includes('price') || lowerText.includes('market') || lowerText.includes('sell')) {
-    return "💰 Check current market prices through e-NAM portal or local mandis. Build relationships with buyers and consider direct marketing. Add value through processing if possible. Store properly to avoid post-harvest losses.";
+  else if (lowerText.includes('price') || lowerText.includes('market') || lowerText.includes('sell')) {
+    response = "💰 Check current market prices through e-NAM portal or local mandis. Build relationships with buyers and consider direct marketing. Add value through processing if possible. Store properly to avoid post-harvest losses.";
+  }
+  // Default response
+  else {
+    response = "🌾 Thank you for your agricultural question! While I'm currently experiencing high demand, here are some general tips: Follow good agricultural practices, consult your local Krishi Vigyan Kendra (KVK), and use modern farming techniques for better yields. Feel free to ask again!";
   }
   
-  // Default response
-  return "🌾 Thank you for your agricultural question! While I'm currently experiencing high demand, here are some general tips: Follow good agricultural practices, consult your local Krishi Vigyan Kendra (KVK), and use modern farming techniques for better yields. Feel free to ask again!";
+  // Translate to Malayalam if requested
+  if (language === 'ml') {
+    try {
+      response = await translateToMalayalam(response);
+    } catch (error) {
+      console.error('❌ Fallback translation failed:', error);
+      // Return a basic Malayalam message if translation fails
+      response = "ക്ഷമിക്കണം, ഇപ്പോൾ വിശദമായ മറുപടി നൽകാൻ കഴിഞ്ഞില്ല. കൃഷി സംബന്ധിയായ സഹായത്തിന് പ്രാദേശിക കൃഷി ഓഫീസറെ സമീപിക്കുക.";
+    }
+  }
+  
+  return response;
 }
 
 // Add a simple test function
@@ -166,18 +199,25 @@ async function testAI(query = "What crops are good for monsoon season?") {
 }
 
 // Simple AI response for real-time chat (no database)
-async function generateChatResponse(text) {
+async function generateChatResponse(text, options = {}) {
   try {
-    console.log(`🤖 Generating chat response for: ${text.substring(0, 50)}...`);
+    const { language = 'en' } = options;
+    console.log(`🤖 Generating chat response for: ${text.substring(0, 50)}... (Language: ${language})`);
     
     const context = await retrieveContext(text);
-    const prompt = `You are Krishi Mitra, an expert agricultural assistant helping Indian farmers. Provide practical, actionable advice in simple language. Keep responses helpful but concise (2-3 sentences max).
+    
+    // Create language-specific prompt
+    const basePrompt = `You are Krishi Mitra, an expert agricultural assistant helping Indian farmers. Provide practical, actionable advice in simple language. Keep responses helpful but concise (2-3 sentences max).
 
 Context: ${context || 'None'}
 
 Farmer's Question: ${text}
 
-Provide helpful agricultural guidance:`;
+Provide helpful agricultural guidance`;
+    
+    const prompt = language === 'ml' 
+      ? `${basePrompt}. IMPORTANT: Reply ONLY in Malayalam language. Use Malayalam script (മലയാളം).`
+      : `${basePrompt}:`;
 
     let answer = '';
     if (model) {
@@ -187,35 +227,43 @@ Provide helpful agricultural guidance:`;
           const response = await result.response;
           return response.text();
         });
+        
+        // If Malayalam was requested but response is in English, translate it
+        if (language === 'ml' && answer && !isMalayalam(answer)) {
+          console.log('🔄 Response not in Malayalam, translating...');
+          answer = await translateToMalayalam(answer);
+        }
+        
         console.log('✅ Chat response generated successfully');
       } catch (genErr) {
         console.error('❌ AI Generation Error after retries:', genErr);
-        answer = getFallbackResponse(text);
+        answer = getFallbackResponse(text, language);
       }
     } else {
       console.log('⚠️ Gemini API not configured - using fallback');
-      answer = getFallbackResponse(text);
+      answer = getFallbackResponse(text, language);
     }
 
     if (!answer) {
-      answer = getFallbackResponse(text);
+      answer = getFallbackResponse(text, language);
     }
     
     return answer;
   } catch (err) {
     console.error('❌ Error in generateChatResponse:', err);
-    return getFallbackResponse(text);
+    return getFallbackResponse(text, language);
   }
 }
 
 // Generate treatment recommendations for plant diseases
-async function generateDiseaseRecommendation(diseaseData) {
+async function generateDiseaseRecommendation(diseaseData, language = 'en') {
   try {
-    console.log(`🩺 Generating treatment recommendation for: ${diseaseData.primaryDisease?.disease}`);
+    console.log(`🩺 Generating treatment recommendation for: ${diseaseData.primaryDisease?.disease} (${language})`);
     
     const { primaryDisease, predictions } = diseaseData;
     
-    const prompt = `You are an expert plant pathologist and agricultural advisor. A farmer has uploaded an image of their plant, and our AI analysis has identified:
+    // Create language-specific prompt
+    let prompt = `You are an expert plant pathologist and agricultural advisor. A farmer has uploaded an image of their plant, and our AI analysis has identified:
 
 PRIMARY DISEASE: ${primaryDisease.disease} (${primaryDisease.confidence}% confidence, ${primaryDisease.severity} severity)
 
@@ -232,6 +280,11 @@ Please provide a well-formatted treatment plan with the following structure:
 
 Make it practical for Indian farmers, especially in Kerala. Use emojis and clear formatting. Focus on cost-effective, locally available solutions. Keep each section concise but actionable.`;
 
+    // Add language instruction for Malayalam
+    if (language === 'ml') {
+      prompt += '\n\nIMPORTANT: Please respond in Malayalam language only. Use Malayalam text throughout the entire response.';
+    }
+
     let recommendation = '';
     if (model) {
       try {
@@ -240,29 +293,41 @@ Make it practical for Indian farmers, especially in Kerala. Use emojis and clear
           const response = await result.response;
           return response.text();
         });
-        console.log('✅ Disease treatment recommendation generated successfully');
+        console.log(`✅ Disease treatment recommendation generated successfully in ${language}`);
+        
+        // Verify Malayalam response and translate if needed
+        if (language === 'ml' && !isMalayalam(recommendation)) {
+          console.log('⚠️ Gemini responded in English, translating to Malayalam...');
+          try {
+            recommendation = await translateToMalayalam(recommendation);
+          } catch (translateErr) {
+            console.error('❌ Translation failed:', translateErr);
+            recommendation = await getFallbackDiseaseRecommendation(primaryDisease.disease, language);
+          }
+        }
+        
       } catch (genErr) {
         console.error('❌ AI Generation Error for disease recommendation:', genErr);
-        recommendation = getFallbackDiseaseRecommendation(primaryDisease.disease);
+        recommendation = await getFallbackDiseaseRecommendation(primaryDisease.disease, language);
       }
     } else {
       console.log('⚠️ Gemini API not configured - using fallback disease recommendation');
-      recommendation = getFallbackDiseaseRecommendation(primaryDisease.disease);
+      recommendation = await getFallbackDiseaseRecommendation(primaryDisease.disease, language);
     }
 
     if (!recommendation) {
-      recommendation = getFallbackDiseaseRecommendation(primaryDisease.disease);
+      recommendation = await getFallbackDiseaseRecommendation(primaryDisease.disease, language);
     }
     
     return recommendation;
   } catch (err) {
     console.error('❌ Error in generateDiseaseRecommendation:', err);
-    return getFallbackDiseaseRecommendation('Unknown Disease');
+    return await getFallbackDiseaseRecommendation('Unknown Disease', language);
   }
 }
 
-function getFallbackDiseaseRecommendation(diseaseName) {
-  return `🩺 **Treatment Plan for ${diseaseName}**
+async function getFallbackDiseaseRecommendation(diseaseName, language = 'en') {
+  let recommendation = `🩺 **Treatment Plan for ${diseaseName}**
 
 🚨 **IMMEDIATE ACTIONS**
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -300,6 +365,33 @@ function getFallbackDiseaseRecommendation(diseaseName) {
 🔹 Unusual symptoms appear
 
 📞 **Contact**: Your local Krishi Vigyan Kendra (KVK) or agricultural extension officer for region-specific guidance.`;
+
+  // Translate to Malayalam if requested
+  if (language === 'ml') {
+    try {
+      recommendation = await translateToMalayalam(recommendation);
+    } catch (error) {
+      console.error('❌ Fallback disease recommendation translation failed:', error);
+      // Provide a basic Malayalam version if translation fails
+      recommendation = `🩺 **${diseaseName} ചികിത്സാ പദ്ധതി**
+
+🚨 **അടിയന്തര നടപടികൾ**
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🔹 രോഗബാധിതമായ ഭാഗങ്ങൾ ഉടനെ നീക്കം ചെയ്യുക
+🔹 രോഗബാധിത സസ്യങ്ങളെ ആരോഗ്യമുള്ളവയിൽ നിന്ന് വേർതിരിക്കുക
+🔹 സസ്യങ്ങൾക്ക് ചുറ്റും വായു സഞ്ചാരം മെച്ചപ്പെടുത്തുക
+
+🌿 **ജൈവ ചികിത്സ**
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🔹 വേപ്പെണ്ണ സ്പ്രേ ഉപയോഗിക്കുക
+🔹 മഞ്ഞൾ പേസ്റ്റ് പ്രയോഗിക്കുക
+🔹 കമ്പോസ്റ്റ് ടീ ഉപയോഗിക്കുക
+
+📞 **സഹായത്തിനായി പ്രാദേശിക കൃഷി വിദഗ്ധനെ സമീപിക്കുക**`;
+    }
+  }
+
+  return recommendation;
 }
 
 module.exports = { generateAIResponse, generateChatResponse, testAI, generateDiseaseRecommendation };

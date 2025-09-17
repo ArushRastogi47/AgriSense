@@ -158,13 +158,28 @@ class PlantDiseaseService {
     };
   }
 
-  formatDiseaseReport(diseaseResult) {
+  async formatDiseaseReport(diseaseResult, language = 'en') {
     if (!diseaseResult.success) {
-      return `🚨 **Disease Analysis Failed**
+      let report = `🚨 **Disease Analysis Failed**
 
 ${diseaseResult.fallbackMessage}
 
 **Error**: ${diseaseResult.error}`;
+      
+      // Translate to Malayalam if requested
+      if (language === 'ml') {
+        try {
+          const { translateToMalayalam } = require('./aiService');
+          report = await translateToMalayalam(report);
+        } catch (error) {
+          console.error('❌ Translation failed for error report:', error);
+          report = `🚨 **രോഗ വിശകലനം പരാജയപ്പെട്ടു**
+
+ക്ഷമിക്കണം, ഇമേജ് വിശകലനം ചെയ്യുന്നതിൽ പിശക് സംഭവിച്ചു. ദയവായി വീണ്ടും ശ്രമിക്കുക.`;
+        }
+      }
+      
+      return report;
     }
 
     const { predictions, primaryDisease } = diseaseResult;
@@ -199,6 +214,26 @@ ${primaryDisease.description ? `**Description**: ${primaryDisease.description}` 
 ✅ Consult local agricultural expert if symptoms worsen
 
 🤖 **Generating personalized treatment plan...**`;
+
+    // Translate to Malayalam if requested
+    if (language === 'ml') {
+      try {
+        const { translateToMalayalam } = require('./aiService');
+        report = await translateToMalayalam(report);
+      } catch (error) {
+        console.error('❌ Translation failed for disease report:', error);
+        // Provide a basic Malayalam version if translation fails
+        report = `🔬 **സസ്യ രോഗ വിശകലനം പൂർത്തിയായി**
+
+🎯 **പ്രാഥമിക രോഗനിർണയം**
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+**രോഗം**: ${primaryDisease.disease}
+**വിശ്വാസ്യത**: ${primaryDisease.confidence}%
+**തീവ്രത**: ${this.getSeverityEmoji(primaryDisease.severity)} ${primaryDisease.severity}
+
+🤖 **വ്യക്തിഗത ചികിത്സ പദ്ധതി സൃഷ്ടിക്കുന്നു...**`;
+      }
+    }
 
     return report;
   }
