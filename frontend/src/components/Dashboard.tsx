@@ -22,7 +22,10 @@ import {
   ArrowLeft,
   MapPin,
   DollarSign,
-  IndianRupee
+  IndianRupee,
+  Navigation,
+  Building2,
+  User
 } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 
@@ -112,6 +115,35 @@ type CropPrice = {
 type CropPricesData = {
   location: string;
   prices: CropPrice[];
+  lastUpdated: string;
+};
+
+type KrishiSevaKendra = {
+  name: string;
+  nameLocal: string;
+  address: string;
+  district: string;
+  state: string;
+  pincode: string;
+  phone: string;
+  email: string;
+  services: string[];
+  distance: number;
+  coordinates: {
+    latitude: number;
+    longitude: number;
+  };
+  workingHours: string;
+  officerName: string;
+};
+
+type KrishiSevaKendraData = {
+  userLocation: {
+    latitude: number;
+    longitude: number;
+    district: string;
+  };
+  centers: KrishiSevaKendra[];
   lastUpdated: string;
 };
 
@@ -470,13 +502,38 @@ ${soil.moisture < 30 ? '🚨 URGENT: Soil moisture is low. Immediate irrigation 
 // Fetch crop prices for Kerala crops
 const fetchCropPrices = async (): Promise<CropPricesData> => {
   try {
-    // For now, we'll use mock data as most crop price APIs require authentication
-    // In production, you would integrate with Indian government APIs like:
-    // - AGMARKNET API
-    // - eNAM (National Agriculture Market) API
-    // - Department of Agriculture APIs
+    // Call our backend API for real crop prices
+    const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
+    const response = await fetch(`${backendUrl}/api/crop-prices?state=kerala&limit=10`);
     
-    // Mock data for popular Kerala crops
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    
+    // Transform backend data to match our frontend types
+    const transformedPrices: CropPrice[] = data.prices.map((crop: any) => ({
+      name: crop.crop,
+      nameLocal: crop.cropLocal,
+      price: crop.modalPrice,
+      unit: `₹/${crop.unit.toLowerCase()}`,
+      market: crop.market,
+      change: crop.changePercent,
+      trend: crop.trend as 'up' | 'down' | 'stable',
+      lastUpdated: crop.priceDate
+    }));
+
+    return {
+      location: `${data.query.state}, India`,
+      prices: transformedPrices,
+      lastUpdated: data.marketSummary.lastUpdated
+    };
+  } catch (error) {
+    console.error('Error fetching crop prices from API:', error);
+    
+    // Fallback to mock data if API fails
+    console.log('Falling back to mock crop prices data');
     const keralaCrops: CropPrice[] = [
       {
         name: 'Rice (Paddy)',
@@ -517,66 +574,122 @@ const fetchCropPrices = async (): Promise<CropPricesData> => {
         change: 0.5,
         trend: 'stable',
         lastUpdated: new Date().toISOString()
-      },
-      {
-        name: 'Rubber',
-        nameLocal: 'റബ്ബർ',
-        price: 16500,
-        unit: '₹/quintal',
-        market: 'Kottayam Market',
-        change: -2.1,
-        trend: 'down',
-        lastUpdated: new Date().toISOString()
-      },
-      {
-        name: 'Banana',
-        nameLocal: 'വാഴപ്പഴം',
-        price: 1850,
-        unit: '₹/quintal',
-        market: 'Thrissur Market',
-        change: 3.2,
-        trend: 'up',
-        lastUpdated: new Date().toISOString()
-      },
-      {
-        name: 'Ginger',
-        nameLocal: 'ഇഞ്ചി',
-        price: 8500,
-        unit: '₹/quintal',
-        market: 'Kozhikode Market',
-        change: 1.8,
-        trend: 'up',
-        lastUpdated: new Date().toISOString()
-      },
-      {
-        name: 'Turmeric',
-        nameLocal: 'മഞ്ഞൾ',
-        price: 7200,
-        unit: '₹/quintal',
-        market: 'Palakkad Market',
-        change: -0.8,
-        trend: 'down',
-        lastUpdated: new Date().toISOString()
       }
     ];
 
-    // Add some randomness to simulate live price fluctuations
-    const updatedPrices = keralaCrops.map(crop => ({
-      ...crop,
-      price: Math.round(crop.price * (0.95 + Math.random() * 0.1)), // ±5% variation
-      change: Math.round((Math.random() - 0.5) * 10 * 100) / 100, // ±5% change
-      trend: Math.random() > 0.5 ? (Math.random() > 0.5 ? 'up' : 'down') : 'stable' as 'up' | 'down' | 'stable',
+    return {
+      location: 'Kerala, India (Offline)',
+      prices: keralaCrops,
       lastUpdated: new Date().toISOString()
+    };
+  }
+};
+
+// Fetch Krishi Seva Kendra data based on location
+const fetchKrishiSevaKendraData = async (latitude: number, longitude: number): Promise<KrishiSevaKendraData> => {
+  try {
+    // Call our backend API for real Krishi Seva Kendra data
+    const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
+    const response = await fetch(`${backendUrl}/api/krishi-seva-kendra?latitude=${latitude}&longitude=${longitude}&state=kerala`);
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    
+    // Transform backend data to match our frontend types
+    const transformedCenters: KrishiSevaKendra[] = data.centers.map((center: any) => ({
+      name: center.name,
+      nameLocal: center.nameLocal,
+      address: center.address,
+      district: center.district,
+      state: center.state,
+      pincode: center.pincode,
+      phone: center.phone,
+      email: center.email,
+      services: center.services,
+      coordinates: center.coordinates,
+      workingHours: center.workingHours,
+      officerName: center.officerName,
+      distance: Math.round(center.distance * 100) / 100 // Round to 2 decimal places
     }));
 
     return {
-      location: 'Kerala, India',
-      prices: updatedPrices,
-      lastUpdated: new Date().toISOString()
+      userLocation: {
+        latitude: data.userLocation.latitude,
+        longitude: data.userLocation.longitude,
+        district: data.userLocation.district
+      },
+      centers: transformedCenters,
+      lastUpdated: data.lastUpdated
     };
   } catch (error) {
-    console.error('Error fetching crop prices:', error);
-    throw new Error('Failed to fetch crop prices');
+    console.error('Error fetching Krishi Seva Kendra data from API:', error);
+    
+    // Fallback to mock data if API fails
+    console.log('Falling back to mock Krishi Seva Kendra data');
+    
+    // Calculate distance between two coordinates (Haversine formula)
+    const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
+      const R = 6371; // Earth's radius in kilometers
+      const dLat = (lat2 - lat1) * Math.PI / 180;
+      const dLon = (lon2 - lon1) * Math.PI / 180;
+      const a = 
+        Math.sin(dLat/2) * Math.sin(dLat/2) +
+        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+        Math.sin(dLon/2) * Math.sin(dLon/2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+      return R * c;
+    };
+
+    // Mock Krishi Seva Kendras in Kerala (fallback)
+    const krishiSevaKendras: Omit<KrishiSevaKendra, 'distance'>[] = [
+      {
+        name: 'Ernakulam Krishi Seva Kendra',
+        nameLocal: 'എറണാകുളം കൃഷി സേവ കേന്ദ്രം',
+        address: 'Agriculture Office Complex, Kakkanad',
+        district: 'Ernakulam',
+        state: 'Kerala',
+        pincode: '682030',
+        phone: '+91-484-2422334',
+        email: 'ksk.ernakulam@kerala.gov.in',
+        services: ['Soil Testing', 'Crop Advisory', 'Seed Distribution', 'Fertilizer Guidance', 'Pest Management'],
+        coordinates: { latitude: 10.0261, longitude: 76.3105 },
+        workingHours: '9:00 AM - 5:00 PM (Mon-Fri)',
+        officerName: 'Dr. Rajesh Kumar'
+      },
+      {
+        name: 'Thrissur Krishi Seva Kendra',
+        nameLocal: 'തൃശ്ശൂർ കൃഷി സേവ കേന്ദ്രം',
+        address: 'Krishi Bhavan, Round East',
+        district: 'Thrissur',
+        state: 'Kerala',
+        pincode: '680001',
+        phone: '+91-487-2442156',
+        email: 'ksk.thrissur@kerala.gov.in',
+        services: ['Organic Farming', 'Water Management', 'Crop Insurance', 'Market Linkage', 'Training Programs'],
+        coordinates: { latitude: 10.5276, longitude: 76.2144 },
+        workingHours: '9:00 AM - 5:00 PM (Mon-Fri)',
+        officerName: 'Mrs. Priya Nair'
+      }
+    ];
+
+    // Calculate distances and sort by nearest
+    const krishiSevaKendrasWithDistance = krishiSevaKendras.map(ksk => ({
+      ...ksk,
+      distance: calculateDistance(latitude, longitude, ksk.coordinates.latitude, ksk.coordinates.longitude)
+    })).sort((a, b) => a.distance - b.distance);
+
+    return {
+      userLocation: {
+        latitude,
+        longitude,
+        district: krishiSevaKendrasWithDistance[0]?.district || 'Kerala'
+      },
+      centers: krishiSevaKendrasWithDistance,
+      lastUpdated: new Date().toISOString()
+    };
   }
 };
 
@@ -610,6 +723,10 @@ function Dashboard({ location, crop, onBack }: DashboardProps) {
   // Crop Prices state
   const [cropPricesData, setCropPricesData] = useState<CropPricesData | null>(null);
   const [cropPricesLoading, setCropPricesLoading] = useState(false);
+
+  // Krishi Seva Kendra state
+  const [krishiSevaKendraData, setKrishiSevaKendraData] = useState<KrishiSevaKendraData | null>(null);
+  const [krishiSevaKendraLoading, setKrishiSevaKendraLoading] = useState(false);
 
   // Load all data when component mounts
   useEffect(() => {
@@ -666,10 +783,26 @@ function Dashboard({ location, crop, onBack }: DashboardProps) {
     }
   };
 
+  // Function to fetch Krishi Seva Kendra data
+  const handleFetchKrishiSevaKendra = async () => {
+    setKrishiSevaKendraLoading(true);
+    try {
+      const data = await fetchKrishiSevaKendraData(location.latitude, location.longitude);
+      setKrishiSevaKendraData(data);
+    } catch (error) {
+      console.error('Error fetching Krishi Seva Kendra data:', error);
+    } finally {
+      setKrishiSevaKendraLoading(false);
+    }
+  };
+
   // Fetch crop prices when crop-prices tab is selected
   useEffect(() => {
     if (activeTab === 'crop-prices' && !cropPricesData) {
       handleFetchCropPrices();
+    }
+    if (activeTab === 'krishi-seva-kendra' && !krishiSevaKendraData) {
+      handleFetchKrishiSevaKendra();
     }
   }, [activeTab]);
 
@@ -778,6 +911,7 @@ function Dashboard({ location, crop, onBack }: DashboardProps) {
               { id: 'weather', label: t('home.weather_details'), icon: CloudSun },
               { id: 'soil', label: t('home.soil_analysis'), icon: Mountain },
               { id: 'crop-prices', label: t('home.crop_prices'), icon: IndianRupee },
+              { id: 'krishi-seva-kendra', label: t('home.krishi_seva_kendra'), icon: Building2 },
               { id: 'ai-advisor', label: t('home.ai_advisor'), icon: Bot }
             ].map((tab) => (
               <button
@@ -1472,7 +1606,166 @@ function Dashboard({ location, crop, onBack }: DashboardProps) {
             </div>
           </div>
         )}
-        
+
+        {/* Krishi Seva Kendra Tab */}
+        {activeTab === 'krishi-seva-kendra' && (
+          <div className="space-y-6">
+            {/* Header */}
+            <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-2">
+                  <Building2 className="w-6 h-6 text-blue-600" />
+                  <h3 className="text-xl font-bold text-gray-800">{t('home.nearest_krishi_seva_kendra')}</h3>
+                </div>
+                <button
+                  onClick={handleFetchKrishiSevaKendra}
+                  disabled={krishiSevaKendraLoading}
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                >
+                  <RefreshCw className={`w-4 h-4 ${krishiSevaKendraLoading ? 'animate-spin' : ''}`} />
+                  {krishiSevaKendraLoading ? 'Locating...' : 'Find Centers'}
+                </button>
+              </div>
+
+              {krishiSevaKendraLoading && !krishiSevaKendraData && (
+                <div className="flex items-center justify-center py-12">
+                  <div className="text-center">
+                    <Loader2 className="w-8 h-8 animate-spin text-blue-600 mx-auto mb-2" />
+                    <p className="text-gray-600">Finding nearest Krishi Seva Kendras...</p>
+                  </div>
+                </div>
+              )}
+
+              {krishiSevaKendraData && (
+                <div className="space-y-4">
+                  <div className="text-sm text-gray-600 mb-6">
+                    <div className="flex items-center gap-2 mb-2">
+                      <MapPin className="w-4 h-4 text-blue-600" />
+                      <span>Your Location: {krishiSevaKendraData.userLocation.district}, Kerala</span>
+                    </div>
+                    <p>Last Updated: {new Date(krishiSevaKendraData.lastUpdated).toLocaleString()}</p>
+                  </div>
+
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {krishiSevaKendraData.centers.slice(0, 6).map((center, index) => (
+                      <div key={index} className="bg-gradient-to-br from-blue-50 to-green-50 rounded-xl p-6 border border-blue-100 hover:shadow-lg transition-shadow">
+                        <div className="flex items-start justify-between mb-4">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-2">
+                              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-bold ${
+                                index === 0 ? 'bg-green-600' : index === 1 ? 'bg-blue-600' : 'bg-gray-600'
+                              }`}>
+                                {index + 1}
+                              </div>
+                              <div>
+                                <h4 className="font-bold text-gray-800 text-lg">{center.name}</h4>
+                                <p className="text-sm text-gray-600">{center.nameLocal}</p>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-lg font-bold text-blue-600">
+                              {center.distance.toFixed(1)} km
+                            </div>
+                            <div className="text-xs text-gray-500">distance</div>
+                          </div>
+                        </div>
+
+                        <div className="space-y-3 mb-4">
+                          <div className="flex items-start gap-2">
+                            <MapPin className="w-4 h-4 text-gray-500 mt-0.5" />
+                            <div className="text-sm text-gray-700">
+                              <p>{center.address}</p>
+                              <p>{center.district}, {center.state} - {center.pincode}</p>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            <Clock className="w-4 h-4 text-gray-500" />
+                            <span className="text-sm text-gray-700">{center.workingHours}</span>
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            <User className="w-4 h-4 text-gray-500" />
+                            <span className="text-sm text-gray-700">Officer: {center.officerName}</span>
+                          </div>
+                        </div>
+
+                        <div className="mb-4">
+                          <h5 className="font-semibold text-gray-800 mb-2 text-sm">Services Available:</h5>
+                          <div className="flex flex-wrap gap-2">
+                            {center.services.slice(0, 3).map((service, serviceIndex) => (
+                              <span
+                                key={serviceIndex}
+                                className="bg-white text-blue-700 px-2 py-1 rounded-full text-xs font-medium border border-blue-200"
+                              >
+                                {service}
+                              </span>
+                            ))}
+                            {center.services.length > 3 && (
+                              <span className="text-xs text-gray-500 px-2 py-1">
+                                +{center.services.length - 3} more
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="flex items-center justify-between pt-4 border-t border-blue-200">
+                          <div className="space-y-1">
+                            <a 
+                              href={`tel:${center.phone}`}
+                              className="text-blue-600 hover:text-blue-700 text-sm font-medium flex items-center gap-1"
+                            >
+                              📞 {center.phone}
+                            </a>
+                            <a 
+                              href={`mailto:${center.email}`}
+                              className="text-blue-600 hover:text-blue-700 text-sm font-medium flex items-center gap-1"
+                            >
+                              ✉️ Contact
+                            </a>
+                          </div>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => window.open(`https://www.google.com/maps/dir/?api=1&destination=${center.coordinates.latitude},${center.coordinates.longitude}`, '_blank')}
+                              className="flex items-center gap-1 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
+                            >
+                              <Navigation className="w-3 h-3" />
+                              Directions
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="mt-6 p-4 bg-green-50 rounded-xl border border-green-200">
+                    <div className="flex items-start gap-3">
+                      <CheckCircle className="w-5 h-5 text-green-600 mt-0.5" />
+                      <div className="text-sm text-green-800">
+                        <h4 className="font-semibold mb-1">Krishi Seva Kendra Services</h4>
+                        <p>
+                          These centers provide free agricultural advisory services, soil testing, seed distribution, 
+                          and technical guidance. Visit during working hours or call ahead to confirm officer availability.
+                          Services may vary by center and season.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {!krishiSevaKendraLoading && !krishiSevaKendraData && (
+                <div className="text-center py-12">
+                  <Building2 className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-600 mb-4">Click "Find Centers" to locate nearest Krishi Seva Kendras</p>
+                  <p className="text-sm text-gray-500">We'll show you the closest agricultural support centers in your area</p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* AI Advisor Tab */}
         {activeTab === 'ai-advisor' && (
           <div className="space-y-6">

@@ -11,7 +11,8 @@ import {
   Activity,
   Sun,
   Wind,
-  Droplets
+  Droplets,
+  Search
 } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 import '../styles/farm-background.css';
@@ -31,6 +32,35 @@ type LocationData = {
 interface LandingPageProps {
   onSubmit: (location: LocationData, crop: string) => void;
 }
+
+// Geocode a location string to coordinates
+const geocodeLocation = async (locationString: string): Promise<LocationData> => {
+  try {
+    const response = await fetch(
+      `https://api.openweathermap.org/geo/1.0/direct?q=${encodeURIComponent(locationString)}&limit=1&appid=${OPENWEATHER_API_KEY}`
+    );
+    
+    if (response.ok) {
+      const data = await response.json();
+      if (data.length > 0) {
+        const result = data[0];
+        return {
+          latitude: result.lat,
+          longitude: result.lon,
+          city: result.name,
+          country: result.country,
+          state: result.state,
+          district: result.local_names?.en || result.name
+        };
+      }
+    }
+    
+    throw new Error('Location not found');
+  } catch (error) {
+    console.error('Geocoding error:', error);
+    throw new Error(`Failed to find location: ${locationString}`);
+  }
+};
 
 // Get user's current location
 const getCurrentLocation = (): Promise<LocationData> => {
@@ -122,11 +152,14 @@ function LandingPage({ onSubmit }: LandingPageProps) {
   const [crop, setCrop] = useState('Rice');
   const [currentLocation, setCurrentLocation] = useState<LocationData | null>(null);
   const [locationLoading, setLocationLoading] = useState(false);
+  const [manualLocationLoading, setManualLocationLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [locationSource, setLocationSource] = useState<'live' | 'manual'>('live');
 
   const handleGetCurrentLocation = async () => {
     setLocationLoading(true);
     setError(null);
+    setLocationSource('live');
     try {
       const locationData = await getCurrentLocation();
       setCurrentLocation(locationData);
@@ -142,22 +175,70 @@ function LandingPage({ onSubmit }: LandingPageProps) {
       };
       setCurrentLocation(fallbackLocation);
       setLocation('Delhi, India');
+      setLocationSource('manual');
     } finally {
       setLocationLoading(false);
     }
   };
 
-  const handleSubmit = () => {
-    if (!currentLocation) {
-      setError('Please get your location first');
+  const handleManualLocationSearch = async () => {
+    if (!location.trim()) {
+      setError('Please enter a location');
       return;
     }
+
+    setManualLocationLoading(true);
+    setError(null);
+    setLocationSource('manual');
+    
+    try {
+      const locationData = await geocodeLocation(location.trim());
+      setCurrentLocation(locationData);
+      setLocation(`${locationData.city}, ${locationData.country}`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to find location');
+      setCurrentLocation(null);
+    } finally {
+      setManualLocationLoading(false);
+    }
+  };
+
+  const handleLocationInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setLocation(e.target.value);
+    setError(null);
+    // Clear current location if user is typing manually
+    if (locationSource === 'live' && e.target.value !== `${currentLocation?.city}, ${currentLocation?.country}`) {
+      setCurrentLocation(null);
+      setLocationSource('manual');
+    }
+  };
+
+  const handleLocationInputKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleManualLocationSearch();
+    }
+  };
+
+  const handleSubmit = async () => {
+    // If no current location but location text is entered, try to geocode it first
+    if (!currentLocation && location.trim()) {
+      await handleManualLocationSearch();
+      return;
+    }
+    
+    if (!currentLocation) {
+      setError('Please select a location or use your current location');
+      return;
+    }
+    
     onSubmit(currentLocation, crop);
   };
 
-  // Get current location on component mount
+  // Don't automatically get location on mount - let users choose
   useEffect(() => {
-    handleGetCurrentLocation();
+    // Optional: You can still auto-get location if desired
+    // handleGetCurrentLocation();
   }, []);
 
   return (
@@ -235,30 +316,111 @@ function LandingPage({ onSubmit }: LandingPageProps) {
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-3">
                   <MapPin className="w-4 h-4 inline mr-2 text-green-600" />
-                  {t('home.location')}
+                  Location
                 </label>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={location}
-                    onChange={(e) => setLocation(e.target.value)}
-                    placeholder={t('home.current_location')}
-                    className="flex-1 px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all bg-gray-50 focus:bg-white"
-                  />
-                  <button
-                    onClick={handleGetCurrentLocation}
-                    disabled={locationLoading}
-                    className="px-4 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center gap-2"
-                    title={t('home.current_location')}
-                  >
-                    {locationLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Navigation className="w-4 h-4" />}
-                  </button>
+                <div className="space-y-3">
+                  {/* Location Input Field */}
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={location}
+                      onChange={handleLocationInputChange}
+                      onKeyPress={handleLocationInputKeyPress}
+                      placeholder="Enter city, state, or address (e.g., Kochi, Kerala)"
+                      className="flex-1 px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all bg-gray-50 focus:bg-white"
+                    />
+                    <button
+                      onClick={handleManualLocationSearch}
+                      disabled={manualLocationLoading || !location.trim()}
+                      className="px-4 py-3 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-colors disabled:opacity-50 flex items-center gap-2"
+                      title="Search Location"
+                    >
+                      {manualLocationLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <MapPin className="w-4 h-4" />}
+                    </button>
+                  </div>
+                  
+                  {/* Location Actions */}
+                  <div className="flex gap-2">
+                    <button
+                      onClick={handleGetCurrentLocation}
+                      disabled={locationLoading}
+                      className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2 text-sm"
+                      title="Use Current Location"
+                    >
+                      {locationLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Navigation className="w-4 h-4" />}
+                      Use My Location
+                    </button>
+                    
+                    {/* Popular Kerala locations quick select */}
+                    <div className="flex-1">
+                      <select
+                        value=""
+                        onChange={(e) => {
+                          if (e.target.value) {
+                            setLocation(e.target.value);
+                            setLocationSource('manual');
+                            setError(null);
+                            setCurrentLocation(null);
+                          }
+                        }}
+                        className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all bg-gray-50 focus:bg-white text-sm"
+                      >
+                        <option value="">Quick Select</option>
+                        <optgroup label="Kerala Districts">
+                          <option value="Kochi, Kerala">Kochi, Kerala</option>
+                          <option value="Thiruvananthapuram, Kerala">Thiruvananthapuram, Kerala</option>
+                          <option value="Thrissur, Kerala">Thrissur, Kerala</option>
+                          <option value="Kozhikode, Kerala">Kozhikode, Kerala</option>
+                          <option value="Kottayam, Kerala">Kottayam, Kerala</option>
+                          <option value="Palakkad, Kerala">Palakkad, Kerala</option>
+                          <option value="Alappuzha, Kerala">Alappuzha, Kerala</option>
+                          <option value="Kollam, Kerala">Kollam, Kerala</option>
+                          <option value="Kannur, Kerala">Kannur, Kerala</option>
+                          <option value="Wayanad, Kerala">Wayanad, Kerala</option>
+                          <option value="Idukki, Kerala">Idukki, Kerala</option>
+                          <option value="Malappuram, Kerala">Malappuram, Kerala</option>
+                          <option value="Kasaragod, Kerala">Kasaragod, Kerala</option>
+                          <option value="Pathanamthitta, Kerala">Pathanamthitta, Kerala</option>
+                        </optgroup>
+                        <optgroup label="Other Agricultural Centers">
+                          <option value="Mumbai, Maharashtra">Mumbai, Maharashtra</option>
+                          <option value="Pune, Maharashtra">Pune, Maharashtra</option>
+                          <option value="Bangalore, Karnataka">Bangalore, Karnataka</option>
+                          <option value="Chennai, Tamil Nadu">Chennai, Tamil Nadu</option>
+                          <option value="Hyderabad, Telangana">Hyderabad, Telangana</option>
+                          <option value="Vijayawada, Andhra Pradesh">Vijayawada, Andhra Pradesh</option>
+                          <option value="Mysore, Karnataka">Mysore, Karnataka</option>
+                          <option value="Coimbatore, Tamil Nadu">Coimbatore, Tamil Nadu</option>
+                        </optgroup>
+                      </select>
+                    </div>
+                  </div>
                 </div>
+
+                {/* Location Status */}
+                {currentLocation && (
+                  <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg">
+                    <div className="flex items-center gap-2 text-sm text-green-700">
+                      <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                      <span className="font-medium">
+                        {locationSource === 'live' ? 'Live Location:' : 'Selected Location:'}
+                      </span>
+                      <span>{currentLocation.city}, {currentLocation.state || currentLocation.country}</span>
+                    </div>
+                    <div className="text-xs text-green-600 mt-1">
+                      Coordinates: {currentLocation.latitude.toFixed(4)}, {currentLocation.longitude.toFixed(4)}
+                    </div>
+                  </div>
+                )}
+
+                {/* Error Display */}
                 {error && (
-                  <p className="text-red-600 text-sm mt-2 flex items-center gap-1">
-                    <span className="w-1 h-1 bg-red-600 rounded-full"></span>
-                    {error}
-                  </p>
+                  <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+                    <p className="text-red-600 text-sm flex items-center gap-2">
+                      <span className="w-1 h-1 bg-red-600 rounded-full"></span>
+                      {error}
+                    </p>
+                  </div>
                 )}
               </div>
               
@@ -302,11 +464,30 @@ function LandingPage({ onSubmit }: LandingPageProps) {
               {/* Submit Button */}
               <button
                 onClick={handleSubmit}
-                disabled={!currentLocation || locationLoading}
+                disabled={locationLoading || manualLocationLoading}
                 className="w-full farm-button px-6 py-4 text-white text-lg font-semibold rounded-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3"
               >
-                <span>Get My Farm Dashboard</span>
-                <ArrowRight className="w-5 h-5" />
+                {locationLoading || manualLocationLoading ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    <span>Processing Location...</span>
+                  </>
+                ) : currentLocation ? (
+                  <>
+                    <span>Get My Farm Dashboard</span>
+                    <ArrowRight className="w-5 h-5" />
+                  </>
+                ) : location.trim() ? (
+                  <>
+                    <span>Search & Continue</span>
+                    <ArrowRight className="w-5 h-5" />
+                  </>
+                ) : (
+                  <>
+                    <span>Enter Location to Continue</span>
+                    <MapPin className="w-5 h-5" />
+                  </>
+                )}
               </button>
             </div>
 

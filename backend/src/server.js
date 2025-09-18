@@ -13,6 +13,8 @@ const { connectToDatabase } = require('./utils/db');
 const queryRoutes = require('./routes/query');
 const infoRoutes = require('./routes/info');
 const officerRoutes = require('./routes/officer');
+const krishiSevaKendraRoutes = require('./routes/krishiSevaKendra');
+const cropPricesRoutes = require('./routes/cropPrices');
 const { initChatSockets } = require('./sockets/chat');
 const { setIo } = require('./utils/io');
 
@@ -39,6 +41,8 @@ app.get('/api/health', (req, res) => {
 app.use('/api/query', queryRoutes);
 app.use('/api', infoRoutes);
 app.use('/api/officer', officerRoutes);
+app.use('/api/krishi-seva-kendra', krishiSevaKendraRoutes);
+app.use('/api/crop-prices', cropPricesRoutes);
 
 // Socket.io
 initChatSockets(io);
