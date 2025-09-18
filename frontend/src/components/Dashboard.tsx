@@ -450,6 +450,19 @@ ${soil.moisture < 30 ? '🚨 URGENT: Soil moisture is low. Immediate irrigation 
 
 function Dashboard({ location, crop, onBack }: DashboardProps) {
   const { t, language } = useLanguage();
+  
+  // Helper function to translate soil values
+  const translateSoilValue = (value: string, type: 'type' | 'drainage'): string => {
+    const translations: Record<string, string> = {
+      'Clay Loam': t('soil.clay_loam'),
+      'Sandy Loam': t('soil.sandy_loam'),
+      'Loamy': t('soil.loamy'),
+      'Well-drained': t('soil.well_drained'),
+      'Moderately drained': t('soil.moderately_drained')
+    };
+    return translations[value] || value;
+  };
+  
   const [weatherData, setWeatherData] = useState<WeatherData | null>(null);
   const [soilData, setSoilData] = useState<SoilData | null>(null);
   const [landData, setLandData] = useState<LandData | null>(null);
@@ -556,8 +569,8 @@ function Dashboard({ location, crop, onBack }: DashboardProps) {
       <div className="min-h-screen bg-gradient-to-br from-green-50 via-blue-50 to-yellow-50 flex items-center justify-center">
         <div className="text-center">
           <Loader2 className="w-12 h-12 animate-spin text-green-600 mx-auto mb-4" />
-          <h2 className="text-xl font-semibold text-gray-800 mb-2">Loading Your Dashboard</h2>
-          <p className="text-gray-600">Fetching weather, soil, and land data...</p>
+          <h2 className="text-xl font-semibold text-gray-800 mb-2">{t('dashboard.loading_title')}</h2>
+          <p className="text-gray-600">{t('dashboard.loading_subtitle')}</p>
         </div>
       </div>
     );
@@ -565,7 +578,7 @@ function Dashboard({ location, crop, onBack }: DashboardProps) {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 via-blue-50 to-yellow-50 p-4 md:p-6">
-      <div className="max-w-7xl mx-auto space-y-6">
+      <div className="w-4/5 mx-auto space-y-6">
         {/* Header with Back Button */}
         <div className="flex items-center justify-between">
           <button
@@ -573,7 +586,7 @@ function Dashboard({ location, crop, onBack }: DashboardProps) {
             className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-gray-800 hover:bg-white/50 rounded-xl transition-all"
           >
             <ArrowLeft className="w-5 h-5" />
-            <span>Back to Setup</span>
+            <span>{t('dashboard.back_to_setup')}</span>
           </button>
           
           <div className="flex items-center gap-3 bg-white/80 backdrop-blur-sm px-4 py-2 rounded-xl">
@@ -695,7 +708,7 @@ function Dashboard({ location, crop, onBack }: DashboardProps) {
               <div className="space-y-4">
                 <div className="flex justify-between items-center">
                   <span className="text-gray-600">{t('home.soil_type')}</span>
-                  <span className="font-semibold">{soilData.type || t('common.loading')}</span>
+                  <span className="font-semibold">{translateSoilValue(soilData.type, 'type') || t('common.loading')}</span>
                 </div>
                 
                 <div>
@@ -747,7 +760,7 @@ function Dashboard({ location, crop, onBack }: DashboardProps) {
             <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
               <div className="flex items-center gap-2 mb-4">
                 <Leaf className="w-6 h-6 text-green-600" />
-                <h3 className="text-lg font-bold text-gray-800">Quick Insights</h3>
+                <h3 className="text-lg font-bold text-gray-800">{t('dashboard.quick_insights')}</h3>
               </div>
               
               <div className="space-y-4">
@@ -755,7 +768,7 @@ function Dashboard({ location, crop, onBack }: DashboardProps) {
                   <div className="flex items-start gap-2">
                     <CheckCircle className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
                     <div>
-                      <h4 className="font-semibold text-green-800 mb-1">Weather Status</h4>
+                      <h4 className="font-semibold text-green-800 mb-1">{t('dashboard.weather_status')}</h4>
                       <p className="text-sm text-green-700">
                         Current conditions are {weatherData.current.temperature_c > 35 ? 'hot' : weatherData.current.temperature_c < 10 ? 'cold' : 'suitable'} for {crop} cultivation.
                       </p>
@@ -765,13 +778,13 @@ function Dashboard({ location, crop, onBack }: DashboardProps) {
                 
                 <div className="space-y-3">
                   <div className="flex justify-between items-center text-sm">
-                    <span className="text-gray-600">Soil Moisture</span>
+                    <span className="text-gray-600">{t('dashboard.soil_moisture')}</span>
                     <span className={`font-semibold ${soilData.moisture < 40 ? 'text-red-600' : 'text-green-600'}`}>
                       {soilData.moisture < 40 ? 'Low - Irrigation needed' : 'Good'}
                     </span>
                   </div>
                   <div className="flex justify-between items-center text-sm">
-                    <span className="text-gray-600">pH Level</span>
+                    <span className="text-gray-600">{t('dashboard.ph_level')}</span>
                     <span className={`font-semibold ${soilData.ph >= 6.0 && soilData.ph <= 7.5 ? 'text-green-600' : 'text-yellow-600'}`}>
                       {soilData.ph >= 6.0 && soilData.ph <= 7.5 ? 'Optimal' : 'Needs attention'}
                     </span>
@@ -781,7 +794,7 @@ function Dashboard({ location, crop, onBack }: DashboardProps) {
                     <span className="font-semibold">{landData.elevation}m</span>
                   </div>
                   <div className="flex justify-between items-center text-sm">
-                    <span className="text-gray-600">Flood Risk</span>
+                    <span className="text-gray-600">{t('dashboard.flood_risk')}</span>
                     <span className={`font-semibold ${
                       landData.floodRisk === 'Low' ? 'text-green-600' : 
                       landData.floodRisk === 'Moderate' ? 'text-yellow-600' : 'text-red-600'
@@ -807,7 +820,7 @@ function Dashboard({ location, crop, onBack }: DashboardProps) {
                   </div>
                   <div>
                     <h4 className="font-semibold text-gray-800">{t('home.temperature')}</h4>
-                    <p className="text-xs text-gray-500">Current conditions</p>
+                    <p className="text-xs text-gray-500">{t('dashboard.current_conditions')}</p>
                   </div>
                 </div>
                 <div className="text-2xl font-bold text-gray-800 mb-1">
@@ -825,7 +838,7 @@ function Dashboard({ location, crop, onBack }: DashboardProps) {
                   </div>
                   <div>
                     <h4 className="font-semibold text-gray-800">{t('home.humidity')}</h4>
-                    <p className="text-xs text-gray-500">Relative humidity</p>
+                    <p className="text-xs text-gray-500">{t('dashboard.relative_humidity')}</p>
                   </div>
                 </div>
                 <div className="text-2xl font-bold text-gray-800 mb-1">
@@ -865,7 +878,7 @@ function Dashboard({ location, crop, onBack }: DashboardProps) {
                   </div>
                   <div>
                     <h4 className="font-semibold text-gray-800">{t('home.pressure')}</h4>
-                    <p className="text-xs text-gray-500">Atmospheric pressure</p>
+                    <p className="text-xs text-gray-500">{t('dashboard.atmospheric_pressure')}</p>
                   </div>
                 </div>
                 <div className="text-2xl font-bold text-gray-800 mb-1">
@@ -1060,7 +1073,7 @@ function Dashboard({ location, crop, onBack }: DashboardProps) {
                         style={{ width: `${Math.min(soilData.nitrogen, 100)}%` }}
                       ></div>
                     </div>
-                    <div className="text-xs text-gray-500">Essential for leaf growth</div>
+                    <div className="text-xs text-gray-500">{t('dashboard.essential_leaf_growth')}</div>
                   </div>
 
                   <div>
@@ -1077,7 +1090,7 @@ function Dashboard({ location, crop, onBack }: DashboardProps) {
                         style={{ width: `${Math.min(soilData.phosphorus, 100)}%` }}
                       ></div>
                     </div>
-                    <div className="text-xs text-gray-500">Important for root development</div>
+                    <div className="text-xs text-gray-500">{t('dashboard.important_root_development')}</div>
                   </div>
 
                   <div>
@@ -1094,7 +1107,7 @@ function Dashboard({ location, crop, onBack }: DashboardProps) {
                         style={{ width: `${Math.min(soilData.potassium, 100)}%` }}
                       ></div>
                     </div>
-                    <div className="text-xs text-gray-500">Enhances disease resistance</div>
+                    <div className="text-xs text-gray-500">{t('dashboard.enhances_disease_resistance')}</div>
                   </div>
                 </div>
 
@@ -1103,11 +1116,11 @@ function Dashboard({ location, crop, onBack }: DashboardProps) {
                   <div className="grid grid-cols-2 gap-3 text-sm">
                     <div>
                       <span className="text-gray-600">{t('soil.type')}:</span>
-                      <span className="ml-2 font-semibold">{soilData.type}</span>
+                      <span className="ml-2 font-semibold">{translateSoilValue(soilData.type, 'type')}</span>
                     </div>
                     <div>
                       <span className="text-gray-600">{t('soil.drainage')}:</span>
-                      <span className="ml-2 font-semibold">{soilData.drainage}</span>
+                      <span className="ml-2 font-semibold">{translateSoilValue(soilData.drainage, 'drainage')}</span>
                     </div>
                     <div>
                       <span className="text-gray-600">{t('soil.temperature')}:</span>
@@ -1163,7 +1176,7 @@ function Dashboard({ location, crop, onBack }: DashboardProps) {
                 
                 <div className="space-y-4">
                   <div className="flex justify-between">
-                    <span className="text-gray-600">Erosion Risk</span>
+                    <span className="text-gray-600">{t('dashboard.erosion_risk')}</span>
                     <span className={`font-semibold ${
                       landData.soilErosionRisk === 'Low' ? 'text-green-600' : 
                       landData.soilErosionRisk === 'Moderate' ? 'text-yellow-600' : 'text-red-600'
@@ -1181,7 +1194,7 @@ function Dashboard({ location, crop, onBack }: DashboardProps) {
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-600">Drought Risk</span>
+                    <span className="text-gray-600">{t('dashboard.drought_risk')}</span>
                     <span className={`font-semibold ${
                       landData.droughtRisk === 'Low' ? 'text-green-600' : 
                       landData.droughtRisk === 'Moderate' ? 'text-yellow-600' : 'text-red-600'

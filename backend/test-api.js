@@ -2,7 +2,7 @@
 
 const axios = require('axios');
 
-const BACKEND_URL = 'http://localhost:8080';
+const BACKEND_URL = 'http://localhost:3001';
 
 async function testBackend() {
     console.log('🧪 Testing AgriSense Backend API...\n');

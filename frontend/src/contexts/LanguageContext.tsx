@@ -238,6 +238,47 @@ const translations = {
     'weather.scattered_clouds': 'scattered clouds',
     'weather.few_clouds': 'few clouds',
     
+    // Dashboard specific translations
+    'dashboard.loading_title': 'Loading Your Dashboard',
+    'dashboard.loading_subtitle': 'Fetching weather, soil, and land data...',
+    'dashboard.back_to_setup': 'Back to Setup',
+    'dashboard.quick_insights': 'Quick Insights',
+    'dashboard.weather_status': 'Weather Status',
+    'dashboard.soil_moisture': 'Soil Moisture',
+    'dashboard.ph_level': 'pH Level',
+    'dashboard.flood_risk': 'Flood Risk',
+    'dashboard.erosion_risk': 'Erosion Risk',
+    'dashboard.drought_risk': 'Drought Risk',
+    'dashboard.current_conditions': 'Current conditions',
+    'dashboard.relative_humidity': 'Relative humidity',
+    'dashboard.atmospheric_pressure': 'Atmospheric pressure',
+    'dashboard.essential_leaf_growth': 'Essential for leaf growth',
+    'dashboard.important_root_development': 'Important for root development',
+    'dashboard.enhances_disease_resistance': 'Enhances disease resistance',
+    
+    // Soil types and characteristics
+    'soil.clay_loam': 'Clay Loam',
+    'soil.sandy_loam': 'Sandy Loam',
+    'soil.loamy': 'Loamy',
+    'soil.well_drained': 'Well-drained',
+    'soil.moderately_drained': 'Moderately drained',
+    
+    // AI recommendation prompts
+    'ai.provide_shade_protection': 'Provide shade protection due to high temperature',
+    'ai.protect_from_frost': 'Protect from frost damage',
+    'ai.temperature_suitable': 'Temperature is suitable for field operations',
+    'ai.monitor_fungal_diseases': 'Monitor for fungal diseases due to high humidity',
+    'ai.pest_monitoring_recommended': 'Pest monitoring recommended',
+    
+    // Camera component translations
+    'camera.review_photo': 'Review Photo',
+    'camera.take_photo': 'Take Photo',
+    'camera.starting_camera': 'Starting camera...',
+    'camera.retake': 'Retake',
+    'camera.use_photo': 'Use Photo',
+    'camera.cancel': 'Cancel',
+    'camera.capture': 'Capture',
+    
     // ...existing code...
   },
   
@@ -497,6 +538,47 @@ const translations = {
     'weather.volcanic_ash': 'അഗ്നിപർവ്വത ചാരം',
     'weather.squalls': 'കൊടുങ്കാറ്റ്',
     'weather.tornado': 'ചുഴലിക്കാറ്റ്',
+    
+    // Dashboard specific translations
+    'dashboard.loading_title': 'നിങ്ങളുടെ ഡാഷ്ബോർഡ് ലോഡ് ചെയ്യുന്നു',
+    'dashboard.loading_subtitle': 'കാലാവസ്ഥ, മണ്ണ്, ഭൂമി ഡാറ്റ ലഭിക്കുന്നു...',
+    'dashboard.back_to_setup': 'സെറ്റപ്പിലേക്ക് മടങ്ങുക',
+    'dashboard.quick_insights': 'ദ്രുത വിവേകങ്ങൾ',
+    'dashboard.weather_status': 'കാലാവസ്ഥാ സ്ഥിതി',
+    'dashboard.soil_moisture': 'മണ്ണിന്റെ ഈർപ്പം',
+    'dashboard.ph_level': 'pH അളവ്',
+    'dashboard.flood_risk': 'വെള്ളപ്പൊക്ക അപകടസാധ്യത',
+    'dashboard.erosion_risk': 'മണ്ണൊലിപ്പ് അപകടസാധ്യത',
+    'dashboard.drought_risk': 'വരൾച്ച അപകടസാധ്യത',
+    'dashboard.current_conditions': 'നിലവിലെ സാഹചര്യങ്ങൾ',
+    'dashboard.relative_humidity': 'ആപേക്ഷിക ഈർപ്പം',
+    'dashboard.atmospheric_pressure': 'വായുമർദ്ദം',
+    'dashboard.essential_leaf_growth': 'ഇലകളുടെ വളർച്ചയ്ക്ക് അത്യാവശ്യം',
+    'dashboard.important_root_development': 'വേരുകളുടെ വികാസത്തിന് പ്രധാനം',
+    'dashboard.enhances_disease_resistance': 'രോഗ പ്രതിരോധം വർധിപ്പിക്കുന്നു',
+    
+    // Soil types and characteristics
+    'soil.clay_loam': 'കളിമൺ പശിമം',
+    'soil.sandy_loam': 'മണൽ പശിമം',
+    'soil.loamy': 'പശിമം',
+    'soil.well_drained': 'നല്ല നീർവാരി',
+    'soil.moderately_drained': 'മാദ്ധ്യമ നീർവാരി',
+    
+    // AI recommendation prompts
+    'ai.provide_shade_protection': 'ഉയർന്ന താപനില കാരണം നിഴൽ സംരക്ഷണം നൽകുക',
+    'ai.protect_from_frost': 'മഞ്ഞ് കേടുപാടുകളിൽ നിന്ന് സംരക്ഷിക്കുക',
+    'ai.temperature_suitable': 'കാർഷിക പ്രവർത്തനങ്ങൾക്ക് താപനില അനുയോജ്യമാണ്',
+    'ai.monitor_fungal_diseases': 'ഉയർന്ന ഈർപ്പം കാരണം ഫംഗൽ രോഗങ്ങൾ നിരീക്ഷിക്കുക',
+    'ai.pest_monitoring_recommended': 'കീട നിരീക്ഷണം ശുപാർശ ചെയ്യുന്നു',
+    
+    // Camera component translations
+    'camera.review_photo': 'ഫോട്ടോ അവലോകനം',
+    'camera.take_photo': 'ഫോട്ടോ എടുക്കുക',
+    'camera.starting_camera': 'ക്യാമറ ആരംഭിക്കുന്നു...',
+    'camera.retake': 'വീണ്ടും എടുക്കുക',
+    'camera.use_photo': 'ഫോട്ടോ ഉപയോഗിക്കുക',
+    'camera.cancel': 'റദ്ദാക്കുക',
+    'camera.capture': 'ക്യാപ്‌ചർ',
   }
 };
 

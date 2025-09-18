@@ -35,31 +35,6 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', uptime: process.uptime() });
 });
 
-// Debug endpoint for plant disease service
-app.get('/api/debug/disease', async (req, res) => {
-  try {
-    const plantDiseaseService = require('./services/plantDiseaseService');
-    
-    // Use a small test image (1x1 pixel PNG)
-    const testImage = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
-    const buffer = Buffer.from(testImage.replace('data:image/png;base64,', ''), 'base64');
-    
-    const result = await plantDiseaseService.identifyDisease(buffer);
-    
-    res.json({
-      status: 'ok',
-      hfToken: process.env.HF_TOKEN ? 'configured' : 'missing',
-      result
-    });
-  } catch (error) {
-    res.json({
-      status: 'error',
-      error: error.message,
-      hfToken: process.env.HF_TOKEN ? 'configured' : 'missing'
-    });
-  }
-});
-
 // Routes
 app.use('/api/query', queryRoutes);
 app.use('/api', infoRoutes);
