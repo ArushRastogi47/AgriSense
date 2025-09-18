@@ -139,7 +139,7 @@ export const Chat = () => {
   }
 
   return (
-    <div className="fixed inset-0 bg-gradient-to-br from-emerald-50 via-green-50 to-yellow-50 overflow-hidden">
+    <div className="fixed inset-x-0 top-16 bottom-0 bg-gradient-to-br from-emerald-50 via-green-50 to-yellow-50 overflow-hidden">
       {/* Background Pattern */}
       <div className="absolute inset-0 opacity-5 z-0">
         <div className="absolute top-10 left-10 w-32 h-32 text-green-200">
@@ -160,14 +160,14 @@ export const Chat = () => {
       </div>
       
       <div className="relative z-10 h-full flex flex-col overflow-hidden">
-        <div className="mx-auto max-w-6xl h-full flex flex-col px-4 md:px-6 lg:px-8 py-4 gap-0 overflow-hidden">
+        <div className="w-4/5 mx-auto h-full flex flex-col px-0 py-4 gap-0 overflow-hidden">
           
           {/* Enhanced Header - Fixed */}
           <motion.div 
             initial={{ opacity: 0, y: -30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, ease: "easeOut" }}
-            className="bg-white/90 backdrop-blur-lg rounded-t-3xl border border-white/20 shadow-xl p-4 sm:p-6 lg:p-8 flex-shrink-0 z-30"
+            className="bg-white/90 backdrop-blur-lg rounded-t-3xl border border-white/20 shadow-xl p-2 sm:p-3 lg:p-4 flex-shrink-0 z-30"
             style={{
               background: 'linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(240,253,244,0.95) 100%)',
               boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04), inset 0 1px 0 rgba(255, 255, 255, 0.6)'
@@ -223,7 +223,7 @@ export const Chat = () => {
           {/* Enhanced Messages Container */}
           <div className="flex-1 flex flex-col min-h-0 z-20 overflow-hidden">
             <div 
-              className="flex-1 overflow-y-auto overflow-x-hidden px-4 sm:px-6 lg:px-8 py-4 space-y-4 scroll-smooth scrollbar-thin scrollbar-thumb-emerald-300 scrollbar-track-transparent hover:scrollbar-thumb-emerald-400"
+              className="flex-1 overflow-y-auto overflow-x-hidden px-2 py-4 space-y-4 scroll-smooth scrollbar-thin scrollbar-thumb-emerald-300 scrollbar-track-transparent hover:scrollbar-thumb-emerald-400"
               style={{
                 background: 'linear-gradient(180deg, rgba(255,255,255,0.8) 0%, rgba(248,250,252,0.9) 100%)',
                 backdropFilter: 'blur(20px)',
@@ -375,7 +375,7 @@ export const Chat = () => {
                       </motion.div>
                     )}
                     
-                    <div className={`max-w-[80%] sm:max-w-[75%] md:max-w-[70%] ${m.role === 'user' ? 'order-2' : ''}`}>
+                    <div className={`max-w-[85%] sm:max-w-[80%] md:max-w-[75%] lg:max-w-[70%] xl:max-w-[65%] ${m.role === 'user' ? 'order-2' : ''}`}>
                       <motion.div
                         initial={{ scale: 0.9, y: 10 }}
                         animate={{ scale: 1, y: 0 }}
@@ -516,7 +516,7 @@ export const Chat = () => {
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, ease: "easeOut" }}
-            className="rounded-b-3xl border-t border-white/20 p-4 sm:p-6 lg:p-8 flex-shrink-0 z-30"
+            className="rounded-b-3xl border-t border-white/20 p-2 sm:p-3 lg:p-4 flex-shrink-0 z-30"
             style={{
               background: 'linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(240,253,244,0.95) 100%)',
               backdropFilter: 'blur(20px)',
