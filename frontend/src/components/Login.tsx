@@ -112,12 +112,12 @@ export default function Login({ onLogin, onGuestLogin, onSwitchToSignup }: Login
                 Email Address
               </label>
               <div className="relative">
-                <Mail className="absolute left-3 top-3 w-5 h-5 text-white/80" />
+                <Mail className="absolute left-3 top-3 w-5 h-5 text-gray-600" />
                 <input
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 bg-black/20 backdrop-blur-sm border border-white/30 rounded-xl focus:ring-4 focus:ring-white/30 focus:border-white/50 outline-none transition-all text-white placeholder-white/70"
+                  className="w-full pl-10 pr-4 py-3 bg-white/90 backdrop-blur-sm border border-white/30 rounded-xl focus:ring-4 focus:ring-blue-500/50 focus:border-blue-500/50 outline-none transition-all text-black placeholder-gray-500"
                   placeholder="Enter your email"
                   required
                 />
@@ -132,19 +132,19 @@ export default function Login({ onLogin, onGuestLogin, onSwitchToSignup }: Login
                 Password
               </label>
               <div className="relative">
-                <Lock className="absolute left-3 top-3 w-5 h-5 text-white/80" />
+                <Lock className="absolute left-3 top-3 w-5 h-5 text-gray-600" />
                 <input
                   type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full pl-10 pr-12 py-3 bg-black/20 backdrop-blur-sm border border-white/30 rounded-xl focus:ring-4 focus:ring-white/30 focus:border-white/50 outline-none transition-all text-white placeholder-white/70"
+                  className="w-full pl-10 pr-12 py-3 bg-white/90 backdrop-blur-sm border border-white/30 rounded-xl focus:ring-4 focus:ring-blue-500/50 focus:border-blue-500/50 outline-none transition-all text-black placeholder-gray-500"
                   placeholder="Enter your password"
                   required
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-3 text-white/80 hover:text-white transition-colors"
+                  className="absolute right-3 top-3 text-gray-600 hover:text-gray-800 transition-colors"
                 >
                   {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
