@@ -33,6 +33,16 @@ app.use(cors());
 app.use(express.json());
 app.use(morgan('dev'));
 
+// Root endpoint for Render
+app.get('/', (req, res) => {
+  res.json({ 
+    message: 'AgriSense Backend API is running!', 
+    status: 'healthy',
+    timestamp: new Date().toISOString(),
+    version: '1.0.0'
+  });
+});
+
 // Health
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', uptime: process.uptime() });
@@ -49,19 +59,56 @@ app.use('/api/crop-prices', cropPricesRoutes);
 initChatSockets(io);
 setIo(io);
 
-// Start
+// Start server - MongoDB Atlas ready
 const PORT = process.env.PORT || 3001;
-connectToDatabase()
-  .then(() => {
-    server.listen(PORT, () => {
-      console.log(`🚀 Backend listening on port ${PORT}`);
-      console.log(`🌐 Health check: http://localhost:${PORT}/api/health`);
-      console.log(`🤖 AI test: http://localhost:${PORT}/api/query/test-ai`);
+const HOST = process.env.NODE_ENV === 'production' ? '0.0.0.0' : 'localhost';
+
+async function startServer() {
+  try {
+    // Connect to MongoDB Atlas
+    await connectToDatabase();
+    console.log('✅ Connected to MongoDB Atlas');
+    
+    // Start the server
+    server.listen(PORT, HOST, () => {
+      console.log(`🚀 Backend listening on ${HOST}:${PORT}`);
+      console.log(`🌐 Health check: http://${HOST}:${PORT}/api/health`);
+      console.log(`🤖 AI test: http://${HOST}:${PORT}/api/query/test-ai`);
+      console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
+      console.log(`📊 Database: MongoDB Atlas`);
     });
-  })
-  .catch((err) => {
-    console.error('❌ Failed to connect to database', err);
-    process.exit(1);
+    
+  } catch (error) {
+    console.error('❌ Failed to start server:', error);
+    console.error('❌ MongoDB Atlas connection failed');
+    
+    // In production, still start server but log the error
+    if (process.env.NODE_ENV === 'production') {
+      console.log('⚠️ Starting server without database in production mode');
+      server.listen(PORT, HOST, () => {
+        console.log(`🚀 Backend listening on ${HOST}:${PORT} (DB connection failed)`);
+      });
+    } else {
+      process.exit(1);
+    }
+  }
+}
+
+// Graceful shutdown
+process.on('SIGTERM', () => {
+  console.log('SIGTERM received, shutting down gracefully');
+  server.close(() => {
+    console.log('Process terminated');
   });
+});
+
+process.on('SIGINT', () => {
+  console.log('SIGINT received, shutting down gracefully');
+  server.close(() => {
+    console.log('Process terminated');
+  });
+});
+
+startServer();
 
 
