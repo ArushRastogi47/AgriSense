@@ -6,7 +6,8 @@ const morgan = require('morgan');
 const dotenv = require('dotenv');
 const { Server } = require('socket.io');
 
-dotenv.config();
+// Load .env file from the backend directory
+dotenv.config({ path: path.join(__dirname, '../.env') });
 
 const { connectToDatabase } = require('./utils/db');
 

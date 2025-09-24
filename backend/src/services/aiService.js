@@ -3,7 +3,10 @@ const { KnowledgeBase } = require('../models/KnowledgeBase');
 const { getIo } = require('../utils/io');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const dotenv = require('dotenv');
-dotenv.config();
+const path = require('path');
+
+// Load .env file from the backend directory
+dotenv.config({ path: path.join(__dirname, '../../.env') });
 
 // Malayalam language detection and translation utilities
 function isMalayalam(text = '') {
