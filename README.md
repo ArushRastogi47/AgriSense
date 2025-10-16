@@ -203,15 +203,19 @@ This project is licensed under the **MIT License** — see the [LICENSE](LICENSE
 ---
 ## 📞 Contact & Support
 
-* 👨‍💻 **Connect with Me on LinkedIn:** [![LinkedIn](https://img.shields.io/badge/LinkedIn-Arush%20Rastogi-blue?style=flat&logo=linkedin)](https://www.linkedin.com/in/arushrastogi47)
+* 💼 **Connect with Me on LinkedIn:** [![LinkedIn](https://img.shields.io/badge/LinkedIn-Arush%20Rastogi-blue?style=flat&logo=linkedin)](https://www.linkedin.com/in/arushrastogi47)
 
 * 🧑‍💻 **GitHub Profile:** [Arush Rastogi](https://github.com/ArushRastogi47)
+
+* 💼 **Connect with Abhay on LinkedIn:** [![LinkedIn](https://img.shields.io/badge/LinkedIn-Abhay%20Choudhary-blue?style=flat&logo=linkedin)](https://www.linkedin.com/in/abhay-choudhary-baa813193?utm_source=share&utm_campaign=share_via&utm_content=profile&utm_medium=android_app)
+
+* 🧑‍💻 **GitHub Profile:** [Abhay Choudhary](https://github.com/Abhay12ch) 
 
 
 ---
 
 <p align="center">
-  Built with ❤️ and ☕ by <b>Arush Rastogi</b><br/>
+  Built with ❤️ and ☕ by <b>Arush Rastogi & Abhay Choudhary</b><br/>
 
 </p>
 
